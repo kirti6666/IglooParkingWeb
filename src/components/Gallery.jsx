@@ -1,4 +1,4 @@
-import { useConfigReady, useSite } from '../ConfigContext'
+import { useSite } from '../ConfigContext'
 import { mediaUrl } from '../api'
 
 /**
@@ -14,7 +14,6 @@ import { mediaUrl } from '../api'
  */
 
 export default function Gallery() {
-  const configReady = useConfigReady()
   const { media } = useSite()
   const images = media.images ?? []
   const videos = Array.isArray(media.videos)
@@ -25,7 +24,7 @@ export default function Gallery() {
   const visibleImages = images.filter((image) => image?.src?.trim())
   const visibleVideos = videos.filter((video) => video?.src?.trim())
 
-  if (!configReady || (!visibleImages.length && !visibleVideos.length)) return null
+  if (!visibleImages.length && !visibleVideos.length) return null
 
   return (
     <section className="fold gallery" id="spaces">

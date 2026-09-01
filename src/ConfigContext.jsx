@@ -73,7 +73,6 @@ export function ConfigProvider({ children }) {
     normaliseConfig(hasBackend ? null : readStored()),
   )
   const [saving, setSaving] = useState(false)
-  const [ready, setReady] = useState(!hasBackend)
 
   // With a backend, the server is the source of truth for every visitor.
   useEffect(() => {
@@ -86,9 +85,6 @@ export function ConfigProvider({ children }) {
       })
       .catch(() => {
         /* API unreachable — the shipped defaults still render the site */
-      })
-      .finally(() => {
-        if (!cancelled) setReady(true)
       })
     return () => {
       cancelled = true
@@ -153,7 +149,6 @@ export function ConfigProvider({ children }) {
   const value = useMemo(
     () => ({
       config,
-      ready,
       /** Update one field by path, e.g. update('contact.email', '…') */
       update(path, val) {
         setConfig((prev) => setAtPath(prev, path, val))
@@ -172,7 +167,7 @@ export function ConfigProvider({ children }) {
         setConfig(normaliseConfig(null))
       },
     }),
-    [config, ready, saving],
+    [config, saving],
   )
 
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>
@@ -183,14 +178,6 @@ export function useSite() {
   const ctx = useContext(ConfigContext)
   if (!ctx) throw new Error('useSite must be used inside <ConfigProvider>')
   return ctx.config
-}
-
-/** Lets media-heavy sections avoid flashing shipped placeholder content while
- * the published server configuration is still loading. */
-export function useConfigReady() {
-  const ctx = useContext(ConfigContext)
-  if (!ctx) throw new Error('useConfigReady must be used inside <ConfigProvider>')
-  return ctx.ready
 }
 
 /** Full access including mutators — used by the admin panel. */
