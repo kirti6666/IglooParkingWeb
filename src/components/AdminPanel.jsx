@@ -607,7 +607,7 @@ export default function AdminPanel({ onClose, onSignOut }) {
                   placeholder="https://…/space.jpg"
                 />
                 <Upload
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                   onUploaded={(url) =>
                     publishUpload(`media.images.${i}.src`, url, `Photo ${i + 1}`)
                   }
@@ -649,7 +649,7 @@ export default function AdminPanel({ onClose, onSignOut }) {
                   placeholder="https://…/tour.mp4"
                 />
                 <Upload
-                  accept="video/mp4,video/webm"
+                  accept="video/mp4,video/webm,.mp4,.webm"
                   onUploaded={(url) =>
                     publishUpload(`media.videos.${i}.src`, url, `Video ${i + 1}`)
                   }
@@ -661,7 +661,7 @@ export default function AdminPanel({ onClose, onSignOut }) {
                   hint="Shown before playback starts — keeps mobile data use down"
                 />
                 <Upload
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                   onUploaded={(url) =>
                     publishUpload(`media.videos.${i}.poster`, url, `Video ${i + 1} poster`)
                   }

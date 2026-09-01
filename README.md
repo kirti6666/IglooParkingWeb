@@ -99,7 +99,7 @@ Redeploy after adding or changing environment variables.
 - **Rate limits**: 10 sign-ins per 15 min, 5 reset requests per hour, 120 API calls per minute
 - **Reset tokens** are random, stored only as a hash, single-use, 30-minute expiry
 - **Identical replies** whether or not an email has an account, so the endpoint can't be used to discover addresses
-- **Uploads** are checked three ways — extension, declared MIME type, and a magic-number sniff of the actual bytes. Filenames are generated, never taken from the client, so a crafted name can't escape the directory. 25 MB cap
+- **Uploads** are checked three ways — extension, declared MIME type, and a magic-number sniff of the actual bytes. A browser that reports no type, or a generic `application/octet-stream`, still has to pass the magic-number check, and the type the file is later served with comes from the verified extension rather than from the client. Filenames are generated, never taken from the client, so a crafted name can't escape the directory. 25 MB cap
 - **Credential changes** require the current password, so an unattended session can't be used to lock you out
 - `npm audit` reports **0 vulnerabilities**
 
