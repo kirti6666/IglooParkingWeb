@@ -38,7 +38,8 @@ Change your email or password any time from the **Security** tab — both ask fo
 your current password first.
 
 Seven tabs: Brand, Contact, Links, Photos & video, Host registrations, Valet
-enquiries, and Security.
+enquiries, and Security. The logo is not among them — it ships as files in
+`public/`, see *Logo* below.
 Edits apply
 to the page instantly as you type; **Publish changes** makes them live for
 everyone. Five wrong sign-in attempts locks the form for 60 seconds.
@@ -126,17 +127,30 @@ field; wiring it to a real map picker needs a maps provider and API key.
 
 ## Logo
 
-`brand.logo` in `src/config.js` replaces the built-in SVG mark with a supplied
-lockup. Set it in the admin panel's **Brand** tab — upload a file there, or
-paste the path to a file you put in `public/` (e.g. `/logo.png`). Crop the
-surrounding whitespace first: it is displayed at header height.
+The supplied artwork lives in `public/` as four PNGs, all cropped from the same
+source file with the white ground made transparent:
 
-`brand.logoLight` is an optional variant used over the hero and in the footer,
-where the background is dark. It falls back to `brand.logo` when empty. Leave
-both empty to keep the built-in mark.
+| File | Used by | Why |
+| --- | --- | --- |
+| `logo-mark.png` | header | The arc, car and parking sign only |
+| `logo-mark-light.png` | header over the hero | Same, ink reversed to white |
+| `logo.png` | footer | The complete lockup, wordmark and tagline |
+| `logo-light.png` | footer | Same, ink reversed to white |
 
-A supplied lockup usually carries its own wordmark, so the "Igloo Parking" text
-beside the mark is dropped whenever one is set.
+The header uses the mark rather than the full lockup because the bar is about
+64px tall, and at that height the lockup's wordmark and tagline are too small
+to read. The wordmark beside it is live text in the site's own typeface, so it
+stays crisp at any size. The footer has room for the complete artwork, so it
+gets that instead — and no longer repeats the tagline underneath, because the
+lockup already carries it.
+
+The reversed versions keep the original coverage and flip only the ink, so the
+parking sign's "P" and the car's windshield stay transparent and read against
+whatever is behind them.
+
+To replace the logo, drop new files at those four paths. Sizes come from the
+`height` prop in `Logo.jsx` (38px header, 112px footer), so the images only
+need to be large enough for a retina display at those sizes.
 
 ## Photos and video
 

@@ -118,10 +118,6 @@ export function ConfigProvider({ children }) {
       const payload = clone(candidate)
       delete payload.admin
       delete payload.media?.video
-      if (payload.brand) {
-        payload.brand.logo = portableMediaUrl(payload.brand.logo)
-        payload.brand.logoLight = portableMediaUrl(payload.brand.logoLight)
-      }
       if (Array.isArray(payload.media?.images)) {
         payload.media.images = payload.media.images.map((image) => ({
           ...image,

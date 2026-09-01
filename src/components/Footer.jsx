@@ -11,10 +11,7 @@ export default function Footer() {
       <div className="shell">
         <div className="footer__top">
           <div>
-            <Logo light size={40} />
-            <p className="footer__tagline">
-              {brand.name} — {brand.tagline}
-            </p>
+            <Logo light lockup height={112} />
           </div>
 
           <nav className="footer__links" aria-label="Footer">

@@ -360,20 +360,17 @@ section[id] {
   text-decoration: none;
 }
 
-.logo__mark {
-  flex: none;
-}
-
-/* A supplied lockup replaces the mark and the wordmark together. */
-.logo--image {
-  gap: 0;
-}
-
 .logo__img {
   display: block;
+  flex: none;
   width: auto;
-  max-width: 200px;
+  height: var(--logo-height, 38px);
   object-fit: contain;
+}
+
+/* The lockup carries its own wordmark, so there is nothing to sit beside. */
+.logo--lockup {
+  gap: 0;
 }
 
 .logo__word {
@@ -2083,15 +2080,6 @@ section[id] {
   gap: 26px;
 }
 
-.footer__tagline {
-  margin-top: 10px;
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.82);
-}
-
 .footer__links {
   display: flex;
   flex-wrap: wrap;
@@ -2703,9 +2691,12 @@ section[id] {
     gap: 8px;
   }
 
-  .logo__mark {
-    width: 32px;
-    height: auto;
+  .logo:not(.logo--lockup) .logo__img {
+    height: 32px;
+  }
+
+  .logo--lockup .logo__img {
+    height: 74px;
   }
 
   .logo__word {

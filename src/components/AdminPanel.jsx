@@ -536,45 +536,6 @@ export default function AdminPanel({ onClose, onSignOut }) {
               onChange={(v) => update('brand.tagline', v)}
             />
 
-            <p className="ap__note">
-              Upload a logo lockup to replace the built-in mark, or paste the
-              path to a file in public/ (e.g. /logo.png). Crop the surrounding
-              whitespace first — it is displayed at header height. Leave both
-              empty to keep the built-in mark.
-            </p>
-
-            <div className="ap__pair">
-              <div className="ap__cardHead">
-                <strong>Logo</strong>
-              </div>
-              <Text
-                label="Logo URL"
-                value={config.brand.logo}
-                onChange={(v) => update('brand.logo', v)}
-                placeholder="/logo.png"
-              />
-              <Upload
-                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                onUploaded={(url) => publishUpload('brand.logo', url, 'Logo')}
-              />
-            </div>
-
-            <div className="ap__pair">
-              <div className="ap__cardHead">
-                <strong>Logo — light version</strong>
-              </div>
-              <Text
-                label="Light logo URL"
-                value={config.brand.logoLight}
-                onChange={(v) => update('brand.logoLight', v)}
-                placeholder="/logo-light.png"
-                hint="Used over the hero and in the footer. Empty falls back to the logo above."
-              />
-              <Upload
-                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                onUploaded={(url) => publishUpload('brand.logoLight', url, 'Light logo')}
-              />
-            </div>
           </>
         )}
 
