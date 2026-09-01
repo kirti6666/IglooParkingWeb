@@ -22,12 +22,6 @@ export default function Header({ solid }) {
             Contact
           </a>
         </nav>
-        <a
-          className={`btn header__cta ${solid ? 'btn--primary' : 'btn--on-grad'}`}
-          href="#download"
-        >
-          Download App
-        </a>
       </div>
     </header>
   )

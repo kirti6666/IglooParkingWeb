@@ -3377,3 +3377,414 @@ section[id] {
   border-radius: 4px;
   padding: 1px 5px;
 }
+
+/* =================================================================
+   Compact layout scale
+
+   The original presentation used generous campaign-style spacing. This
+   tighter scale keeps every section, card and form easier to scan while
+   preserving the same content hierarchy and touch-target accessibility.
+   ================================================================= */
+
+:root {
+  --shell: 1080px;
+  --gut: clamp(16px, 2.2vw, 22px);
+  --r-md: 15px;
+  --r-lg: 21px;
+}
+
+body {
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+
+.fold {
+  padding-block: 50px;
+}
+
+.fold--tight {
+  padding-block: 38px;
+}
+
+.eyebrow {
+  gap: 6px;
+  padding: 6px 13px;
+  font-size: 11px;
+}
+
+.eyebrow::before {
+  width: 6px;
+  height: 6px;
+}
+
+.h-display {
+  font-size: clamp(2.1rem, 5vw, 3.75rem);
+}
+
+.h-section {
+  font-size: clamp(1.6rem, 2.7vw, 2.05rem);
+}
+
+.lede {
+  font-size: clamp(0.98rem, 1.25vw, 1.08rem);
+  line-height: 1.5;
+}
+
+.btn {
+  gap: 8px;
+  padding: 11px 20px;
+  font-size: 0.9rem;
+}
+
+.header__inner {
+  height: 58px;
+}
+
+.header__nav {
+  gap: 22px;
+  margin-left: auto;
+}
+
+.header__link {
+  font-size: 0.86rem;
+}
+
+.hero {
+  padding-block: 92px 50px;
+}
+
+.hero__inner {
+  gap: 30px;
+}
+
+.hero__title {
+  margin-top: 16px;
+}
+
+.hero__sub,
+.hero__chips {
+  margin-top: 13px;
+}
+
+.hero__ctas {
+  gap: 9px;
+  margin-top: 20px;
+}
+
+.hero__wa {
+  margin-top: 14px;
+}
+
+.hero-phone .phone {
+  --phone-w: 264px;
+  --phone-scale: 0.89;
+}
+
+.problem__title,
+.features__title,
+.gallery__title {
+  margin-top: 10px;
+}
+
+.problem__pains {
+  gap: 12px;
+  margin-top: 23px;
+}
+
+.problem__pain {
+  min-height: 96px;
+  padding: 18px;
+  font-size: 0.9rem;
+}
+
+.problem__answer {
+  margin-top: 24px;
+  font-size: clamp(1.2rem, 2vw, 1.6rem);
+}
+
+.features__head,
+.host-register__head,
+.steps__head,
+.contact__head,
+.valet__head,
+.gallery__head {
+  margin-bottom: 24px;
+}
+
+.features__cards,
+.trust__grid,
+.gallery__grid {
+  gap: 12px;
+}
+
+.features__foot {
+  margin-top: 22px;
+}
+
+.card {
+  gap: 10px;
+  padding: 19px 17px 20px;
+}
+
+.card__icon {
+  width: 38px;
+  height: 38px;
+}
+
+.card__body,
+.step__body,
+.trust__body {
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.host-register__title,
+.host-register__lede,
+.valet__head .h-section,
+.valet__sub,
+.contact__sub,
+.gallery__sub {
+  margin-top: 10px;
+}
+
+.host-register__toggle {
+  margin-top: 13px;
+  padding: 11px 14px;
+}
+
+.host-register__apps {
+  margin-top: 15px;
+}
+
+.steps__head .eyebrow,
+.trust .eyebrow {
+  margin-bottom: 10px;
+}
+
+.steps {
+  gap: 18px;
+}
+
+.step__num {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 11px;
+  font-size: 0.95rem;
+}
+
+.steps__art {
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.trust__head {
+  margin-bottom: 23px;
+}
+
+.trust__item {
+  padding: 18px 16px;
+}
+
+.trust__icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 10px;
+}
+
+.download {
+  padding-block: 38px;
+}
+
+.download__sub,
+.download__android {
+  margin-top: 9px;
+}
+
+.download__badges {
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.download__wa {
+  margin-top: 14px;
+}
+
+.contact__layout {
+  gap: 20px;
+}
+
+.form {
+  padding: 19px;
+}
+
+.form__grid {
+  gap: 10px 12px;
+}
+
+.field {
+  gap: 5px;
+}
+
+.field__label {
+  font-size: 0.8rem;
+}
+
+.field__input,
+.field__textarea {
+  border-radius: 11px;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+}
+
+.field__textarea {
+  min-height: 84px;
+}
+
+.form__foot {
+  gap: 11px;
+  margin-top: 16px;
+}
+
+.form__msg {
+  margin-top: 13px;
+  padding: 10px 13px;
+}
+
+.wa-card {
+  padding: 20px 18px;
+}
+
+.wa-card__title,
+.wa-card__body {
+  margin-top: 9px;
+}
+
+.wa-card__btn {
+  margin-top: 15px;
+}
+
+.wa-card__list {
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 15px;
+}
+
+.gallery__grid {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.shot__caption {
+  margin-top: 7px;
+}
+
+.clip {
+  margin-top: 18px;
+}
+
+.footer {
+  padding-block: 32px 20px;
+}
+
+.footer__top {
+  gap: 18px;
+}
+
+.footer__bottom {
+  margin-top: 18px;
+  padding-top: 13px;
+}
+
+.ap {
+  width: min(420px, 100%);
+}
+
+.ap__head,
+.ap__body {
+  padding: 14px 16px;
+}
+
+.ap__tabs {
+  padding: 10px 16px;
+}
+
+.ap__body {
+  gap: 11px;
+}
+
+.ap__pair,
+.ap__lead {
+  gap: 9px;
+  padding: 11px;
+}
+
+.ap__input {
+  padding: 9px 11px;
+}
+
+.ap__foot {
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 980px) {
+  .fold {
+    padding-block: 44px;
+  }
+
+  .hero {
+    padding-block: 82px 42px;
+  }
+}
+
+@media (max-width: 760px) {
+  .form {
+    padding: 17px;
+  }
+
+  .problem__pain {
+    min-height: auto;
+    padding: 16px;
+  }
+}
+
+@media (min-width: 381px) and (max-width: 760px) {
+  .form__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  body {
+    font-size: 15px;
+  }
+
+  .fold,
+  .host-register {
+    padding-block: 38px;
+  }
+
+  .hero {
+    padding-block: 74px 32px;
+  }
+
+  .header__inner {
+    height: 54px;
+  }
+
+  .hero__title {
+    font-size: clamp(2.1rem, 10vw, 2.7rem);
+  }
+
+  .hero__ctas {
+    margin-top: 15px;
+  }
+
+  .form {
+    padding: 15px;
+  }
+
+  .card,
+  .wa-card,
+  .trust__item {
+    padding: 16px;
+  }
+}
