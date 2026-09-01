@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://render.com/schema/render.yaml.json
 
-# One same-origin web service serves the React build and the API. The attached
+# One same-origin web service serves Next.js and the API. The attached
 # disk preserves the JSON database and admin uploads across deploys/restarts.
 services:
   - type: web

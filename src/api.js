@@ -1,16 +1,16 @@
 /**
  * Talks to the API server.
  *
- * Development without VITE_API_URL runs in local-preview mode. Production is
+ * Development without NEXT_PUBLIC_API_URL runs in local-preview mode. Production is
  * intentionally locked to the same-origin API so an old build variable cannot
  * send admin credentials or requests to a stale deployment.
  */
 
-const BASE = import.meta.env.PROD
+const BASE = process.env.NODE_ENV === 'production'
   ? ''
-  : (import.meta.env?.VITE_API_URL || '').replace(/\/$/, '')
+  : (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
 
-export const hasBackend = import.meta.env.PROD || Boolean(BASE)
+export const hasBackend = process.env.NODE_ENV === 'production' || Boolean(BASE)
 
 /** Keep managed upload paths portable in saved configuration. Older local
  *  configs may contain an absolute localhost URL, so migrate those too. */

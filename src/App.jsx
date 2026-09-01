@@ -1,3 +1,5 @@
+'use client'
+
 import { useEffect, useRef, useState } from 'react'
 import { ConfigProvider } from './ConfigContext'
 import Header from './components/Header'

@@ -6,7 +6,7 @@ import { startSession, verifyCredentials } from '../auth'
 /**
  * Admin sign-in.
  *
- * With a backend connected (VITE_API_URL set), this is real authentication:
+ * With a backend connected (NEXT_PUBLIC_API_URL set), this is real authentication:
  * the server checks a bcrypt hash and issues an httpOnly session cookie, and
  * password reset by email works.
  *
@@ -232,7 +232,7 @@ export default function AdminLogin({ onSuccess, onClose }) {
               <strong>Local preview mode — this gate is not real security.</strong>{' '}
               No backend is connected, so the password is checked in the browser and
               can be bypassed. Changes save to this device only. Set{' '}
-              <code>VITE_API_URL</code> to enable real sign-in, password reset by
+              <code>NEXT_PUBLIC_API_URL</code> to enable real sign-in, password reset by
               email, and uploads.
             </p>
           )}

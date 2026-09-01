@@ -4,9 +4,9 @@ import helmet from 'helmet'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import rateLimit from 'express-rate-limit'
-import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import next from 'next'
 import { UPLOAD_DIR, readDb, updateDb } from './db.js'
 import { sameOriginOnly } from './auth.js'
 import authRoutes, { seedAdmin } from './routes/auth.js'
@@ -16,9 +16,9 @@ import valetRoutes from './routes/valet.js'
 
 const app = express()
 const PORT = Number(process.env.PORT || 4000)
-const ORIGIN = process.env.FRONTEND_ORIGIN || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5173'
+const ORIGIN = process.env.FRONTEND_ORIGIN || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000'
 const here = path.dirname(fileURLToPath(import.meta.url))
-const DIST_DIR = path.resolve(here, '..', '..', 'dist')
+const ROOT_DIR = path.resolve(here, '..', '..')
 
 // Behind a reverse proxy (nginx, Render, Railway) so rate limiting sees the
 // real client IP rather than the proxy's.
@@ -30,7 +30,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
         imgSrc: ["'self'", 'data:', 'https:'],
@@ -62,27 +62,6 @@ app.get('/api/health', (req, res) => res.json({ ok: true }))
 // to the single-page application.
 app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found.' }))
 
-// In production the API and the built React site share one origin. This keeps
-// admin cookies first-party and lets one Render service deploy the whole app.
-if (existsSync(path.join(DIST_DIR, 'index.html'))) {
-  app.use(
-    express.static(DIST_DIR, {
-      index: false,
-      setHeaders(res, filePath) {
-        if (filePath.endsWith('.html')) {
-          res.setHeader('Cache-Control', 'no-cache')
-        } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
-          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-        }
-      },
-    }),
-  )
-  app.get('*', (req, res) => {
-    res.setHeader('Cache-Control', 'no-cache')
-    res.sendFile(path.join(DIST_DIR, 'index.html'))
-  })
-}
-
 app.use((err, req, res, next) => {
   console.error(err)
   res.status(500).json({ error: 'Something went wrong.' })
@@ -103,8 +82,15 @@ async function start() {
 
   await seedAdmin()
 
+  // Next.js and the API share one Express server/origin, preserving the
+  // existing first-party admin cookie and upload behaviour.
+  const nextApp = next({ dev: false, dir: ROOT_DIR })
+  await nextApp.prepare()
+  const handleNext = nextApp.getRequestHandler()
+  app.all('*', (req, res) => handleNext(req, res))
+
   app.listen(PORT, () => {
-    console.log(`Igloo API listening on http://localhost:${PORT}`)
+    console.log(`Igloo Parking listening on http://localhost:${PORT}`)
     console.log(`Allowing requests from ${ORIGIN}`)
   })
 }

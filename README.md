@@ -1,6 +1,6 @@
 # Igloo Parking — landing page
 
-A React single-page site built to the *Igloo Parking Landing Page Content Brief*
+A Next.js site built to the *Igloo Parking Landing Page Content Brief*
 (25 July 2026). All nine folds are implemented with the exact copy from the brief.
 
 ---
@@ -14,8 +14,8 @@ whole site bundled into one file — no install, no server.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # production files land in dist/
+npm run dev      # http://localhost:3000
+npm run build    # creates the production Next.js build
 ```
 
 Production deployment is defined in `render.yaml`. Render builds the React site,
@@ -28,7 +28,7 @@ disk. Commits pushed to `main` deploy automatically.
 
 **How to open it:** add `#admin` to the end of the URL.
 
-- Development: `http://localhost:5173/#admin`
+- Development: `http://localhost:3000/#admin`
 - Live site: `https://yoursite.com/#admin`
 
 A sign-in screen appears. With the backend running, sign in with the email and
@@ -45,7 +45,7 @@ everyone. Five wrong sign-in attempts locks the form for 60 seconds.
 
 ### Two modes
 
-The site runs in one of two modes depending on whether `VITE_API_URL` is set.
+The site runs in one of two modes depending on whether `NEXT_PUBLIC_API_URL` is set.
 
 | | Local preview (no backend) | **Backend connected** |
 | --- | --- | --- |
@@ -73,7 +73,7 @@ npm start                 # http://localhost:4000
 Then point the site at it, from the project root:
 
 ```bash
-echo "VITE_API_URL=http://localhost:4000" > .env
+echo "NEXT_PUBLIC_API_URL=http://localhost:4000" > .env
 npm run dev
 ```
 
@@ -81,7 +81,7 @@ npm run dev
 
 Work down this list — it's almost always one of these.
 
-1. **Does the panel say "Local preview mode"?** Then `VITE_API_URL` isn't set. Create `.env` in the **project root** (not `server/`) with `VITE_API_URL=http://localhost:4000`, then **restart `npm run dev`** — Vite only reads `.env` at startup.
+1. **Does the panel say "Local preview mode"?** Then `NEXT_PUBLIC_API_URL` isn't set. Create `.env` in the **project root** (not `server/`) with `NEXT_PUBLIC_API_URL=http://localhost:4000`, then **restart `npm run dev`** — Next.js only reads `.env` at startup.
 2. **Look at the server's terminal output on startup.** It prints the admin account's email, or a loud block explaining why no account exists.
 3. **Changed `ADMIN_EMAIL`/`ADMIN_PASSWORD` after the first run?** Those are only read when the account is first created. Run `npm run reset-admin` in `server/` to overwrite it with the current `.env` values.
 4. **Password rejected at seeding?** It needs 10+ characters including at least one letter and one number. The server says so at startup if it failed.
@@ -103,7 +103,7 @@ Completely stuck: stop the server, delete `server/data/db.json`, restart. That r
 ## Render deployment
 
 The repository ships a Render Blueprint at `render.yaml` that creates one
-same-origin Node web service. It serves both `dist/` and `/api`, which keeps the
+same-origin Node web service. It serves both Next.js and `/api`, which keeps the
 admin session cookie first-party and avoids frontend/API CORS problems.
 
 The Blueprint provides:
