@@ -1,5 +1,6 @@
 import { ArrowIcon } from './Icons'
 import AppStoreBadge from './AppStoreBadge'
+import PlayStoreBadge from './PlayStoreBadge'
 import { waLink, WA_MESSAGES } from '../config'
 import { useSite } from '../ConfigContext'
 
@@ -13,7 +14,9 @@ export default function Download() {
       <div className="shell download__inner">
         <h2 className="h-section download__title reveal">Get {brand.name}. Park smarter.</h2>
         <p className="download__sub reveal">
-          Available now on iPhone. Android coming soon.
+          {links.playStore
+            ? 'Available now on iPhone and Android.'
+            : 'Available now on iPhone. Android coming soon.'}
         </p>
 
         <div className="download__badges reveal">
@@ -24,18 +27,10 @@ export default function Download() {
 
           {/* The Play Store badge appears automatically once a Play Store URL is set. */}
           {links.playStore ? (
-            <a
-              className="badge-store"
+            <PlayStoreBadge
               href={links.playStore}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Get ${brand.name} ${brand.suffix} on Google Play`}
-            >
-              <span className="badge-store__text">
-                <span className="badge-store__small">Get it on</span>
-                <span className="badge-store__big">Google Play</span>
-              </span>
-            </a>
+              label={`Get ${brand.name} ${brand.suffix} on Google Play`}
+            />
           ) : null}
         </div>
 

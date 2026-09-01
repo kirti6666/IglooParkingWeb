@@ -142,6 +142,17 @@ export function AppleIcon({ size = 26 }) {
   )
 }
 
+export function PlayStoreIcon({ size = 26 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M5.2 3.4a1.4 1.4 0 0 0-.7 1.22v14.76a1.4 1.4 0 0 0 .7 1.22L14.9 12 5.2 3.4Zm10.92 7.52-2.43-1.46-6.3-5.58 8.73 7.04Zm-8.73 9.2 6.31-5.58 2.42-1.46-8.73 7.04Zm10.22-8.96L15.84 12l1.77.84 1.34-.8a.05.05 0 0 0 0-.08l-1.34-.8Z"
+      />
+    </svg>
+  )
+}
+
 export function ArrowIcon({ size = 16 }) {
   return (
     <svg

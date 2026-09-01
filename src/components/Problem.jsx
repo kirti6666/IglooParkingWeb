@@ -5,8 +5,8 @@
  */
 
 const PAINS = [
-  'Circling the block.',
-  'Overpaying at a lot.',
+  'Circling the block again and again while trying to find an available parking spot.',
+  'Overpaying at a parking lot because affordable spaces nearby are hard to find.',
   'A driveway that sits empty all day while you pay for gym parking.',
 ]
 

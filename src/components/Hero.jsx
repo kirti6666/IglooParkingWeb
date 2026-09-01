@@ -3,6 +3,7 @@ import HeroPhone from './HeroPhone'
 import BayLines from './BayLines'
 import { ArrowIcon } from './Icons'
 import AppStoreBadge from './AppStoreBadge'
+import PlayStoreBadge from './PlayStoreBadge'
 import { waLink, WA_MESSAGES } from '../config'
 import { useSite } from '../ConfigContext'
 
@@ -24,7 +25,7 @@ const Hero = forwardRef(function Hero(_props, ref) {
               very top now, so repeating it directly beneath was redundant */}
           <p className="hero__tag">
             <span className="hero__dot" aria-hidden="true" />
-            Now live on iPhone
+            {links.playStore ? 'Now live on iPhone & Android' : 'Now live on iPhone'}
           </p>
 
           <h1 className="h-display hero__title">
@@ -49,7 +50,16 @@ const Hero = forwardRef(function Hero(_props, ref) {
           </ul>
 
           <div className="hero__ctas">
-            <AppStoreBadge href={links.appStore} large />
+            <div className="hero__stores">
+              <AppStoreBadge href={links.appStore} large />
+              {links.playStore ? (
+                <PlayStoreBadge
+                  href={links.playStore}
+                  label={`Get ${brand.name} ${brand.suffix} on Google Play`}
+                  large
+                />
+              ) : null}
+            </div>
             <a className="btn btn--outline-light" href="#hosts">
               List Your Parking Space
             </a>

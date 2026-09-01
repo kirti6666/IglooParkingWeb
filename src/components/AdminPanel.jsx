@@ -31,30 +31,6 @@ function Text({ label, value, onChange, placeholder, hint, type = 'text' }) {
   )
 }
 
-function Color({ label, value, onChange }) {
-  return (
-    <label className="ap__field ap__field--color">
-      <span className="ap__label">{label}</span>
-      <span className="ap__colorRow">
-        <input
-          className="ap__swatch"
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={`${label} colour picker`}
-        />
-        <input
-          className="ap__input ap__input--hex"
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          spellCheck="false"
-        />
-      </span>
-    </label>
-  )
-}
-
 /** Upload control: picks a file, sends it to the server, writes the returned
  *  URL straight into the config field it belongs to. */
 function Upload({ accept, onUploaded }) {
@@ -110,12 +86,75 @@ function Upload({ accept, onUploaded }) {
 
 const TABS = [
   ['brand', 'Brand'],
-  ['colors', 'Colours'],
   ['contact', 'Contact'],
   ['links', 'Links'],
   ['media', 'Photos & video'],
+  ['valet', 'Valet enquiries'],
   ['security', 'Security'],
 ]
+
+function ValetLeadsTab() {
+  const [leads, setLeads] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  async function load() {
+    setLoading(true)
+    setError('')
+    try {
+      const result = await api.getValetLeads()
+      setLeads(result?.leads ?? [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  if (!hasBackend) {
+    return <p className="ap__note">Valet enquiries require the backend.</p>
+  }
+
+  return (
+    <>
+      <div className="ap__leadHead">
+        <p className="ap__note">
+          Newest enquiries appear first. Contact details are visible only to
+          signed-in administrators.
+        </p>
+        <button className="btn btn--ghost" type="button" onClick={load} disabled={loading}>
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
+      </div>
+
+      {error ? <p className="ap__error">{error}</p> : null}
+      {!loading && !error && leads.length === 0 ? (
+        <p className="ap__note">No valet enquiries yet.</p>
+      ) : null}
+
+      {leads.map((lead) => (
+        <article className="ap__lead" key={lead.id}>
+          <div className="ap__leadTitle">
+            <h3>{lead.businessName}</h3>
+            <time dateTime={lead.submittedAt}>
+              {new Date(lead.submittedAt).toLocaleString()}
+            </time>
+          </div>
+          <dl>
+            <div><dt>Contact</dt><dd>{lead.contactName}</dd></div>
+            <div><dt>Mobile</dt><dd><a href={`tel:${lead.mobile}`}>{lead.mobile}</a></dd></div>
+            <div><dt>Email</dt><dd><a href={`mailto:${lead.email}`}>{lead.email}</a></dd></div>
+            <div className="ap__leadWide"><dt>Address</dt><dd>{lead.addressLine1}, {lead.location}, {lead.city} — {lead.pin}, {lead.state}</dd></div>
+          </dl>
+        </article>
+      ))}
+    </>
+  )
+}
 
 /** Generates the hash to paste into src/config.js when changing the password.
  *  The password itself is never stored anywhere — only its hash. */
@@ -302,10 +341,9 @@ function SecurityTab({ username, update }) {
 }
 
 export default function AdminPanel({ onClose, onSignOut }) {
-  const { config, update, replace, save, reset } = useConfigAdmin()
+  const { config, update, save, reset } = useConfigAdmin()
   const [tab, setTab] = useState('brand')
   const [note, setNote] = useState('')
-  const fileRef = useRef(null)
 
   // Escape closes the panel.
   useEffect(() => {
@@ -334,25 +372,13 @@ export default function AdminPanel({ onClose, onSignOut }) {
     const a = document.createElement('a')
     a.href = url
     a.download = 'igloo-site-config.json'
+    a.hidden = true
+    document.body.appendChild(a)
     a.click()
-    URL.revokeObjectURL(url)
-    flash('Downloaded. Hand this to your developer, or import it on another device.')
-  }
-
-  function handleImport(event) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        replace(JSON.parse(String(reader.result)))
-        flash('Config imported.')
-      } catch {
-        flash("That file isn't valid JSON.")
-      }
-    }
-    reader.readAsText(file)
-    event.target.value = ''
+    a.remove()
+    // Some browsers begin reading the Blob after the click handler returns.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    flash('Downloaded. Keep this backup or hand it to your developer.')
   }
 
   return (
@@ -404,45 +430,6 @@ export default function AdminPanel({ onClose, onSignOut }) {
               value={config.brand.tagline}
               onChange={(v) => update('brand.tagline', v)}
             />
-          </>
-        )}
-
-        {tab === 'colors' && (
-          <>
-            <Color
-              label="Primary (buttons & links)"
-              value={config.colors.primary}
-              onChange={(v) => update('colors.primary', v)}
-            />
-            <Color
-              label="Primary — hover"
-              value={config.colors.deep}
-              onChange={(v) => update('colors.deep', v)}
-            />
-            <Color
-              label="Gradient start"
-              value={config.colors.gradientFrom}
-              onChange={(v) => update('colors.gradientFrom', v)}
-            />
-            <Color
-              label="Gradient end"
-              value={config.colors.gradientTo}
-              onChange={(v) => update('colors.gradientTo', v)}
-            />
-            <Color
-              label="Host accent (the warm one)"
-              value={config.colors.host}
-              onChange={(v) => update('colors.host', v)}
-            />
-            <Color
-              label="Text colour"
-              value={config.colors.ink}
-              onChange={(v) => update('colors.ink', v)}
-            />
-            <p className="ap__note">
-              Keep buttons dark enough that white text stays readable on them —
-              aim for a contrast ratio of at least 4.5:1.
-            </p>
           </>
         )}
 
@@ -517,6 +504,8 @@ export default function AdminPanel({ onClose, onSignOut }) {
             <SecurityTab username={config.admin.username} update={update} />
           ))}
 
+        {tab === 'valet' && <ValetLeadsTab />}
+
         {tab === 'media' && (
           <>
             <Text
@@ -532,8 +521,8 @@ export default function AdminPanel({ onClose, onSignOut }) {
 
             <p className="ap__note">
               Upload a photo, or paste a URL if it's already hosted elsewhere.
-              Landscape shots around 1200×900 work best. Empty slots show a
-              labelled placeholder rather than a broken image.
+              Landscape shots around 1200×900 work best. Empty slots stay hidden
+              from the public site until media is added.
             </p>
 
             {config.media.images.map((img, i) => (
@@ -594,19 +583,12 @@ export default function AdminPanel({ onClose, onSignOut }) {
 
       <footer className="ap__foot">
         {note ? <p className="ap__flash">{note}</p> : null}
-        <div className="ap__actions">
+        {tab !== 'valet' ? <div className="ap__actions">
           <button className="btn btn--primary" type="button" onClick={handleSave}>
             {hasBackend ? 'Publish changes' : 'Save to this browser'}
           </button>
           <button className="btn btn--ghost" type="button" onClick={handleDownload}>
             Download config
-          </button>
-          <button
-            className="btn btn--ghost"
-            type="button"
-            onClick={() => fileRef.current?.click()}
-          >
-            Import
           </button>
           <button
             className="btn btn--ghost ap__reset"
@@ -618,14 +600,7 @@ export default function AdminPanel({ onClose, onSignOut }) {
           >
             Reset
           </button>
-          <input
-            ref={fileRef}
-            className="visually-hidden"
-            type="file"
-            accept="application/json"
-            onChange={handleImport}
-          />
-        </div>
+        </div> : null}
       </footer>
     </div>
   )

@@ -18,8 +18,9 @@ npm run dev      # http://localhost:5173
 npm run build    # production files land in dist/
 ```
 
-Deploy by dragging the `dist/` folder onto Netlify, Vercel, Cloudflare Pages,
-or any static host.
+Production deployment is defined in `render.yaml`. Render builds the React site,
+runs the API from the same origin, and stores the database/uploads on a persistent
+disk. Commits pushed to `main` deploy automatically.
 
 ---
 
@@ -37,7 +38,8 @@ password?** and a reset link is emailed to you.
 Change your email or password any time from the **Security** tab — both ask for
 your current password first.
 
-Six tabs: Brand, Colours, Contact, Links, Photos & video, Security. Edits apply
+Six tabs: Brand, Contact, Links, Photos & video, Valet enquiries, and Security.
+Edits apply
 to the page instantly as you type; **Publish changes** makes them live for
 everyone. Five wrong sign-in attempts locks the form for 60 seconds.
 
@@ -57,8 +59,9 @@ The panel tells you which mode it's in.
 
 ## Backend
 
-Lives in `server/`. Node 18+, no database — settings and the admin account sit
-in a JSON file.
+Lives in `server/`. Node 18+. Settings, the admin account and valet enquiries
+use a small JSON database. Locally it lives in `server/data`; Render stores it
+with uploads on the persistent disk configured in `render.yaml`.
 
 ```bash
 cd server
@@ -93,13 +96,34 @@ Completely stuck: stop the server, delete `server/data/db.json`, restart. That r
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seeds the first admin on first boot only. Password needs 10+ chars with a letter and a number |
 | `FRONTEND_ORIGIN` | Your site's URL. Used for CORS and to build reset links |
 | `SMTP_*` | Any provider. **Leave `SMTP_HOST` empty in development** and reset links print to the server console instead of being emailed |
+| `IGLOO_STORAGE_DIR` | Optional persistent storage root. Render sets this to its mounted disk automatically |
 
 `.env`, `server/data/` and `server/uploads/` are gitignored. Never commit them.
+
+## Render deployment
+
+The repository ships a Render Blueprint at `render.yaml` that creates one
+same-origin Node web service. It serves both `dist/` and `/api`, which keeps the
+admin session cookie first-party and avoids frontend/API CORS problems.
+
+The Blueprint provides:
+
+- automatic deployment for every commit pushed to `main`
+- a `/api/health` deployment health check
+- a generated `JWT_SECRET`
+- a 1 GB persistent disk for the JSON database and admin media uploads
+- first-deploy prompts for `ADMIN_EMAIL` and `ADMIN_PASSWORD`
+
+In Render, create or sync a Blueprint for this repository once. Persistent disks
+require a paid web-service plan. After that one-time setup, normal Git pushes are
+automatic. Add SMTP environment variables in the Render dashboard if password
+reset links should be emailed rather than printed to the service log.
 
 ### What protects it
 
 - **bcrypt** at cost 12; passwords are never stored or logged in plaintext
-- **httpOnly, sameSite=strict session cookie**, so page JavaScript — and any XSS — can't read the token
+- **httpOnly session cookie**, using `sameSite=lax` and `secure` in production,
+  so page JavaScript — and any XSS — can't read the token
 - **Origin checking** on every mutating request, a second lock against CSRF
 - **Rate limits**: 10 sign-ins per 15 min, 5 reset requests per hour, 120 API calls per minute
 - **Reset tokens** are random, stored only as a hash, single-use, 30-minute expiry
@@ -113,17 +137,16 @@ Completely stuck: stop the server, delete `server/data/db.json`, restart. That r
 1. Serve over **HTTPS** — the session cookie sets `secure` when `NODE_ENV=production`
 2. Set `NODE_ENV=production`
 3. Change `ADMIN_PASSWORD` from whatever seeded the account
-4. Back up `server/data/db.json` and `server/uploads/` — that's your whole site content
+4. Keep Render disk snapshots/backups — the JSON database and uploaded media are your live site content
 5. Consider putting `/api/auth/*` behind a WAF or Cloudflare if the site gets traffic
 
 ## Photos and video
 
-The Photos & video tab takes URLs, not uploads — there's nowhere to upload to
-without a backend. Host the files somewhere (your web host, S3, Cloudinary) and
-paste the links.
+With the backend connected, the Photos & video tab accepts direct uploads or
+hosted URLs. Render stores uploaded files on the persistent disk.
 
-- **Photos:** four slots, landscape, roughly 1200×900. Empty slots show a
-  labelled placeholder rather than a broken image.
+- **Photos:** four slots, landscape, roughly 1200×900. Empty slots remain hidden
+  until an administrator adds an image.
 - **Video:** an `.mp4` URL plus a poster image. Only metadata preloads until
   someone presses play, so mobile visitors don't burn data on a video they never
   watch. Always set a poster.
@@ -148,7 +171,7 @@ Currently set:
 | Email | support@iglooparking.com |
 | App Store | apps.apple.com/in/app/igloo-parking |
 | Instagram | @iglooparking |
-| Play Store | *empty — see below* |
+| Play Store | play.google.com/store/apps/details?id=com.igloo.iglooparking |
 
 ---
 
@@ -217,10 +240,12 @@ The frame, notch, shadow, and caption all stay as they are.
 | 2 | Problem breather | `Problem.jsx` |
 | 3 | Rider features | `Features.jsx` → `RiderFeatures` |
 | 4 | Host features | `Features.jsx` → `HostFeatures` |
+| — | Host registration details | `HostRegistration.jsx` |
 | 5 | How it works — 3 steps | `HowItWorks.jsx` |
 | 6 | Trust & support strip | `Trust.jsx` |
 | 7 | App download | `Download.jsx` |
 | 8 | Contact form + WhatsApp card | `Contact.jsx` |
+| — | Valet parking enquiry form | `ValetEnquiry.jsx` |
 | 9 | Footer | `Footer.jsx` |
 | — | Sticky WhatsApp button | `WhatsAppButton.jsx` |
 
@@ -258,22 +283,22 @@ to-dos before launch.
 
 **Must do before going live**
 
-1. `server/.env` — set `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `FRONTEND_ORIGIN`, and the `SMTP_*` block. Without SMTP, reset links only print to the server console.
-2. Root `.env` — add `VITE_API_URL=https://your-api-url` or the site stays in local preview mode (no real login, no uploads).
-3. Serve over **HTTPS** and set `NODE_ENV=production`, or the session cookie won't be marked `secure`.
+1. Sync `render.yaml` as a Render Blueprint and provide `ADMIN_EMAIL` and `ADMIN_PASSWORD` when prompted.
+2. Configure `SMTP_*` in Render if password-reset emails are required. Without SMTP, reset links print to the service log.
+3. Use the Render HTTPS URL or attach your custom domain.
 4. Swap in Apple's official App Store badge — theirs is required by their guidelines. Download from [Apple's marketing resources](https://developer.apple.com/app-store/marketing/guidelines/) and replace the markup in `src/components/AppStoreBadge.jsx`.
-5. Point the footer's **Terms of Use** and **Privacy Policy** at real pages (admin panel → Links, or `src/config.js`).
+5. Have counsel review the included **Terms of Use** and **Privacy Policy** before launch.
 
 **Do when you have the content**
 
-6. Add photos and video of parking spaces (admin panel → Photos & video). Placeholders show until then.
+6. Add photos and video of parking spaces (admin panel → Photos & video). Empty slots stay hidden.
 7. Replace the drawn phone mockups with real screenshots — see *Photos and video* below.
-8. Add a Play Store URL once Android is live; the badge appears on its own.
+8. Keep the Play Store listing URL current if the Android package changes.
 9. Add `public/og-image.png` and re-add the `og:image` meta tag in `index.html` for link previews.
 
 **Ongoing**
 
-10. Back up `server/data/db.json` and `server/uploads/` — that's your entire site content.
+10. Retain Render disk snapshots/backups for the database and uploaded media.
 
 ## Responsive behaviour
 
@@ -300,7 +325,6 @@ so iOS doesn't zoom on focus.
 
 ## Android
 
-`PLAY_STORE_URL` in `src/config.js` is deliberately empty. The page shows
-"Android — coming soon" as text only, per the brief. Paste a Play Store URL in
-there and the badge appears automatically while the text disappears — no other
-edits needed.
+The Android badge links to the Igloo Parking listing on Google Play. Its URL is
+stored in `links.playStore` in `src/config.js` and can also be changed from the
+admin panel.

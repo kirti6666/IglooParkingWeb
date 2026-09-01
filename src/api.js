@@ -1,14 +1,16 @@
 /**
  * Talks to the API server.
  *
- * If VITE_API_URL is not set, the site runs in LOCAL PREVIEW mode: settings
- * come from src/config.js, edits live only in your browser, and uploads are
- * unavailable. Set VITE_API_URL in a .env file to switch on the real backend.
+ * Development without VITE_API_URL runs in local-preview mode. Production is
+ * intentionally locked to the same-origin API so an old build variable cannot
+ * send admin credentials or requests to a stale deployment.
  */
 
-const BASE = (import.meta.env?.VITE_API_URL || '').replace(/\/$/, '')
+const BASE = import.meta.env.PROD
+  ? ''
+  : (import.meta.env?.VITE_API_URL || '').replace(/\/$/, '')
 
-export const hasBackend = Boolean(BASE)
+export const hasBackend = import.meta.env.PROD || Boolean(BASE)
 
 /** Uploads come back as /uploads/x.jpg — relative to the API, not the site. */
 export const mediaUrl = (url) =>
@@ -58,6 +60,10 @@ export const api = {
     }),
   changeEmail: (email, password) =>
     request('/api/auth/change-email', { method: 'POST', body: { email, password } }),
+
+  submitValet: (details) =>
+    request('/api/valet', { method: 'POST', body: details }),
+  getValetLeads: () => request('/api/valet'),
 
   async upload(file) {
     const form = new FormData()

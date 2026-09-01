@@ -49,24 +49,35 @@ export const defaultConfig = {
 
   links: {
     appStore: 'https://apps.apple.com/in/app/igloo-parking/id6759717457',
-    // Leave empty until Android is live; the badge appears once it's set.
-    playStore: '',
+    playStore: 'https://play.google.com/store/apps/details?id=com.igloo.iglooparking',
     // Optional: a form endpoint (Formspree / FormSubmit / Web3Forms).
     // Empty means the contact form falls back to the visitor's mail app.
     formEndpoint: '',
   },
 
   /* Photos and video of real parking spaces.
-     Empty strings render a labelled placeholder instead of a broken image. */
+     Empty strings keep that media slot hidden on the public site. */
   media: {
     galleryTitle: 'Real spaces, real spots.',
     gallerySubtitle:
       'Covered basements, quiet driveways, and lots with charging — every listing is a real space with a real host.',
     images: [
-      { src: '', alt: 'Covered basement parking', caption: 'Covered basement' },
-      { src: '', alt: 'Private driveway parking', caption: 'Private driveway' },
+      {
+        src: '/gallery/covered-basement.jpg',
+        alt: 'Bright covered basement parking with marked bays',
+        caption: 'Covered basement',
+      },
+      {
+        src: '/gallery/private-parking-bays.jpg',
+        alt: 'Landscaped private parking bays viewed from above',
+        caption: 'Private parking bays',
+      },
       { src: '', alt: 'Parking bay with EV charging', caption: 'EV charging bay' },
-      { src: '', alt: 'Open lot parking', caption: 'Open lot' },
+      {
+        src: '/gallery/open-parking-lot.jpg',
+        alt: 'Aerial view of a marked outdoor parking lot',
+        caption: 'Open parking lot',
+      },
     ],
     video: {
       src: '', // an .mp4 URL, or leave empty
@@ -76,9 +87,9 @@ export const defaultConfig = {
   },
 
   footerLinks: [
-    { label: 'Terms of Use', href: '#' },
-    { label: 'Privacy Policy', href: '#' },
-    { label: 'Help & Support', href: 'mailto:support@iglooparking.com' },
+    { label: 'Terms of Use', href: './terms.html' },
+    { label: 'Privacy Policy', href: './privacy.html' },
+    { label: 'Help & Support', href: './help.html' },
     { label: 'Contact', href: '#contact' },
   ],
 }

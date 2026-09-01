@@ -136,6 +136,7 @@ export default function AdminLogin({ onSuccess, onClose }) {
       setPassword('')
       setConfirm('')
       window.history.replaceState(null, '', `${window.location.pathname}#admin`)
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
     } catch (err) {
       setError(err.message)
     } finally {

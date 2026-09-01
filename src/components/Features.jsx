@@ -107,7 +107,7 @@ export function HostFeatures() {
         </div>
 
         <div className="features__foot reveal">
-          <a className="btn btn--primary" href="#contact">
+          <a className="btn btn--primary" href="#host-registration">
             Register as a Host <ArrowIcon />
           </a>
         </div>

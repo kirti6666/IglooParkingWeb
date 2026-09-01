@@ -13,6 +13,18 @@ const COOKIE = 'igloo_session'
 const BCRYPT_ROUNDS = 12
 const SESSION_HOURS = 8
 
+function cookieOptions() {
+  const production = process.env.NODE_ENV === 'production'
+  return {
+    httpOnly: true,
+    // Production serves the site and API from one origin, so Lax provides
+    // strong CSRF defaults without relying on third-party cookie support.
+    secure: production,
+    sameSite: 'lax',
+    path: '/',
+  }
+}
+
 export const hashPassword = (plain) => bcrypt.hash(plain, BCRYPT_ROUNDS)
 export const checkPassword = (plain, hash) => bcrypt.compare(plain, hash)
 
@@ -32,16 +44,13 @@ export function issueSession(res, user) {
     expiresIn: `${SESSION_HOURS}h`,
   })
   res.cookie(COOKIE, token, {
-    httpOnly: true,
-     secure: true,
-      sameSite: 'none',
+    ...cookieOptions(),
     maxAge: SESSION_HOURS * 3600 * 1000,
-    path: '/',
   })
 }
 
 export function clearSession(res) {
-  res.clearCookie(COOKIE, { path: '/' })
+  res.clearCookie(COOKIE, cookieOptions())
 }
 
 export function currentUser(req) {
@@ -61,16 +70,44 @@ export function requireAuth(req, res, next) {
   return next()
 }
 
+/** Resolve the public request origin without trusting an arbitrary Origin
+ * header. Render supplies the forwarded protocol and the public Host header. */
+export function requestOrigin(req) {
+  const protocol = String(req.headers['x-forwarded-proto'] || req.protocol || 'http')
+    .split(',')[0]
+    .trim()
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '')
+    .split(',')[0]
+    .trim()
+  return host ? `${protocol}://${host}` : ''
+}
+
 /**
- * Cookie-based auth needs CSRF protection. The cookie is already
- * sameSite=strict; this adds a second lock by rejecting any mutating request
- * that doesn't come from our own origin.
+ * Cookie-based auth needs CSRF protection. Every mutating request must come
+ * from the exact public origin (or the configured local frontend origin).
  */
 export function sameOriginOnly(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
-  const allowed = process.env.FRONTEND_ORIGIN
+  const allowed = [
+    requestOrigin(req),
+    process.env.FRONTEND_ORIGIN,
+    process.env.RENDER_EXTERNAL_URL,
+  ].filter(Boolean)
   const source = req.headers.origin || req.headers.referer || ''
-  if (allowed && !source.startsWith(allowed)) {
+  let sourceOrigin = ''
+  try {
+    sourceOrigin = new URL(source).origin
+  } catch {
+    // Missing or malformed browser origins fail closed.
+  }
+  const allowedOrigins = allowed.flatMap((value) => {
+    try {
+      return [new URL(value).origin]
+    } catch {
+      return []
+    }
+  })
+  if (!sourceOrigin || !allowedOrigins.includes(sourceOrigin)) {
     return res.status(403).json({ error: 'Cross-origin request refused.' })
   }
   return next()

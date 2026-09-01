@@ -15,6 +15,9 @@ export default function Header({ solid }) {
           <a className="header__link" href="#how">
             How it works
           </a>
+          <a className="header__link" href="#valet">
+            Valet
+          </a>
           <a className="header__link" href="#contact">
             Contact
           </a>

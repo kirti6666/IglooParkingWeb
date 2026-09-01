@@ -9,6 +9,7 @@ import {
   hashToken,
   issueSession,
   makeResetToken,
+  requestOrigin,
   requireAuth,
 } from '../auth.js'
 import { sendResetEmail } from '../mailer.js'
@@ -101,7 +102,7 @@ router.post('/forgot', forgotLimit, async (req, res) => {
       })
     })
 
-    const base = process.env.FRONTEND_ORIGIN || ''
+    const base = requestOrigin(req) || process.env.FRONTEND_ORIGIN || process.env.RENDER_EXTERNAL_URL || ''
     await sendResetEmail(user.email, `${base}/#admin-reset=${token}`)
   }
 

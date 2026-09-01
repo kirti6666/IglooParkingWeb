@@ -10,15 +10,23 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-export const DATA_DIR = path.join(here, '..', 'data')
-export const UPLOAD_DIR = path.join(here, '..', 'uploads')
+const storageRoot = process.env.IGLOO_STORAGE_DIR?.trim()
+
+// Render mounts a persistent disk at IGLOO_STORAGE_DIR. Local development
+// keeps using server/data and server/uploads exactly as before.
+export const DATA_DIR = storageRoot
+  ? path.join(storageRoot, 'data')
+  : path.join(here, '..', 'data')
+export const UPLOAD_DIR = storageRoot
+  ? path.join(storageRoot, 'uploads')
+  : path.join(here, '..', 'uploads')
 const DB_PATH = path.join(DATA_DIR, 'db.json')
 
 for (const dir of [DATA_DIR, UPLOAD_DIR]) {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
 }
 
-const EMPTY = { config: null, users: [], resetTokens: [] }
+const EMPTY = { config: null, users: [], resetTokens: [], valetLeads: [] }
 
 let cache = null
 let writing = Promise.resolve()

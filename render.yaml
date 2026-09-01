@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+
+# One same-origin web service serves the React build and the API. The attached
+# disk preserves the JSON database and admin uploads across deploys/restarts.
+services:
+  - type: web
+    name: igloo-parking-web
+    runtime: node
+    repo: https://github.com/kirti6666/IglooParkingWeb.git
+    branch: main
+    region: singapore
+    plan: 0.5c-512mb
+    buildCommand: npm ci && npm run build && npm ci --prefix server --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    numInstances: 1
+    disk:
+      name: igloo-data
+      mountPath: /opt/render/project/src/server/storage
+      sizeGB: 1
+    envVars:
+      - key: IGLOO_STORAGE_DIR
+        value: /opt/render/project/src/server/storage
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        value: Igloo Parking <support@iglooparking.com>
