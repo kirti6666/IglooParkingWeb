@@ -1,4 +1,5 @@
 import { useSite } from '../ConfigContext'
+import { mediaUrl } from '../api'
 
 /**
  * Photos and video of real parking spaces.
@@ -37,7 +38,7 @@ export default function Gallery() {
                 <div className="shot__frame">
                   <img
                     className="shot__img"
-                    src={img.src}
+                    src={mediaUrl(img.src)}
                     alt={img.alt || ''}
                     loading="lazy"
                     decoding="async"
@@ -57,8 +58,8 @@ export default function Gallery() {
             <div className="clip__frame">
               <video
                 className="clip__video"
-                src={video.src}
-                poster={video.poster || undefined}
+                src={mediaUrl(video.src)}
+                poster={mediaUrl(video.poster) || undefined}
                 controls
                 playsInline
                 preload="metadata"

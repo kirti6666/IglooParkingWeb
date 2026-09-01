@@ -12,9 +12,30 @@ const BASE = import.meta.env.PROD
 
 export const hasBackend = import.meta.env.PROD || Boolean(BASE)
 
-/** Uploads come back as /uploads/x.jpg — relative to the API, not the site. */
-export const mediaUrl = (url) =>
-  url && url.startsWith('/uploads/') ? `${BASE}${url}` : url
+/** Keep managed upload paths portable in saved configuration. Older local
+ *  configs may contain an absolute localhost URL, so migrate those too. */
+export function portableMediaUrl(url) {
+  if (!url || typeof url !== 'string') return url
+  if (url.startsWith('/uploads/')) return url
+
+  try {
+    const parsed = new URL(url)
+    const localHost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
+    if (localHost && parsed.pathname.startsWith('/uploads/')) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`
+    }
+  } catch {
+    /* A relative/static asset URL is already portable. */
+  }
+
+  return url
+}
+
+/** Resolve a portable upload path against the API only while rendering. */
+export const mediaUrl = (url) => {
+  const portable = portableMediaUrl(url)
+  return portable?.startsWith('/uploads/') ? `${BASE}${portable}` : portable
+}
 
 async function request(path, { method = 'GET', body, form } = {}) {
   const res = await fetch(`${BASE}${path}`, {
@@ -84,6 +105,6 @@ export const api = {
     if (!data?.url) {
       throw new Error('The upload server did not return a file URL. Please try again.')
     }
-    return { ...data, url: mediaUrl(data.url) }
+    return { ...data, url: portableMediaUrl(data.url) }
   },
 }

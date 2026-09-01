@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { defaultConfig } from './config'
-import { api, hasBackend } from './api'
+import { api, hasBackend, portableMediaUrl } from './api'
 
 const STORAGE_KEY = 'igloo.siteConfig.v1'
 
@@ -112,8 +112,18 @@ export function ConfigProvider({ children }) {
         }
         setSaving(true)
         try {
-          const payload = { ...config }
+          const payload = clone(config)
           delete payload.admin
+          if (Array.isArray(payload.media?.images)) {
+            payload.media.images = payload.media.images.map((image) => ({
+              ...image,
+              src: portableMediaUrl(image?.src),
+            }))
+          }
+          if (payload.media?.video) {
+            payload.media.video.src = portableMediaUrl(payload.media.video.src)
+            payload.media.video.poster = portableMediaUrl(payload.media.video.poster)
+          }
           await api.saveConfig(payload)
           return { ok: true, message: 'Published. Every visitor sees this now.' }
         } catch (err) {
