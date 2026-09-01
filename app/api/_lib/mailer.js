@@ -35,3 +35,37 @@ export async function sendResetEmail(to, resetUrl) {
     ].join('\n'),
   })
 }
+
+export function contactMailerReady() {
+  return Boolean(
+    process.env.SMTP_HOST &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS &&
+      (process.env.CONTACT_TO_EMAIL || process.env.SMTP_USER || process.env.ADMIN_EMAIL),
+  )
+}
+
+export async function sendContactEmail({ name, email, phone, message }) {
+  const mailer = getTransport()
+  const to = process.env.CONTACT_TO_EMAIL || process.env.SMTP_USER || process.env.ADMIN_EMAIL
+  if (!mailer || !to) {
+    throw new Error('Contact email delivery is not configured.')
+  }
+
+  await mailer.sendMail({
+    from: process.env.MAIL_FROM || `Igloo Parking <${process.env.SMTP_USER}>`,
+    to,
+    replyTo: email,
+    subject: `Igloo Parking website enquiry from ${name.replace(/[\r\n]+/g, ' ')}`,
+    text: [
+      'A new enquiry was submitted through the Igloo Parking website.',
+      '',
+      `Name: ${name}`,
+      `Email: ${email}`,
+      `Phone: ${phone || 'Not provided'}`,
+      '',
+      'Message:',
+      message,
+    ].join('\n'),
+  })
+}

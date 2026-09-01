@@ -77,7 +77,8 @@ rotate the stored production credentials.
 | `JWT_SECRET` | 48+ random bytes used for sessions and database encryption. Generate: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seeds the first admin on first sign-in. Password needs 10+ chars with a letter and a number |
 | `FRONTEND_ORIGIN` | Your site's URL. Used to build reset links |
-| `SMTP_*` | Any provider. **Leave `SMTP_HOST` empty in development** and reset links print to the Next.js console instead of being emailed |
+| `SMTP_*` | SMTP provider used for password resets and direct website enquiries. Gmail requires an App Password, not your normal account password |
+| `CONTACT_TO_EMAIL` | Gmail inbox that receives contact-form enquiries. Falls back to `SMTP_USER`, then `ADMIN_EMAIL` |
 | `BLOB_READ_WRITE_TOKEN` | Added automatically when the Vercel Blob store is connected |
 
 `.env` is gitignored. Never commit storage tokens or other secrets.
@@ -90,7 +91,7 @@ Connect this GitHub repository to Vercel, then connect a public Blob store:
 - encrypted Blob snapshots for private admin and website data
 
 Set `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_CREDENTIALS_VERSION`,
-`FRONTEND_ORIGIN`, and optional `SMTP_*` values in Vercel Project Settings.
+`FRONTEND_ORIGIN`, `SMTP_*`, and `CONTACT_TO_EMAIL` values in Vercel Project Settings.
 Redeploy after adding or changing environment variables.
 
 ### What protects it

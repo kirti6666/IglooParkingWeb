@@ -109,6 +109,9 @@ export const api = {
     request('/api/host', { method: 'POST', body: details }),
   getHostRegistrations: () => request('/api/host'),
 
+  submitContact: (details) =>
+    request('/api/contact', { method: 'POST', body: details }),
+
   async upload(file) {
     // Fail fast instead of spending a slow mobile upload on a file the server
     // is going to refuse. Keep in step with MAX_BYTES in app/api/media/route.js.

@@ -580,12 +580,6 @@ export default function AdminPanel({ onClose, onSignOut }) {
               onChange={(v) => update('links.playStore', v)}
               hint="Leave empty and the page shows “Android — coming soon” instead"
             />
-            <Text
-              label="Form endpoint"
-              value={config.links.formEndpoint}
-              onChange={(v) => update('links.formEndpoint', v)}
-              hint="Optional Formspree / FormSubmit URL. Empty = opens the visitor's mail app"
-            />
             {config.footerLinks.map((link, i) => (
               <div className="ap__pair" key={i}>
                 <Text

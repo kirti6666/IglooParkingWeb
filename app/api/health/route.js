@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { contactMailerReady } from '../_lib/mailer'
 
 export function GET() {
   const password = process.env.ADMIN_PASSWORD || ''
@@ -11,6 +12,13 @@ export function GET() {
       adminEmailConfigured: Boolean(process.env.ADMIN_EMAIL),
       adminPasswordValid:
         password.length >= 10 && /[a-zA-Z]/.test(password) && /[0-9]/.test(password),
+      smtpConfigured: Boolean(
+        process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS,
+      ),
+      contactRecipientConfigured: Boolean(
+        process.env.CONTACT_TO_EMAIL || process.env.SMTP_USER || process.env.ADMIN_EMAIL,
+      ),
+      contactEmailReady: contactMailerReady(),
     },
   })
 }

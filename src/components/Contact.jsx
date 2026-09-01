@@ -7,12 +7,13 @@ import {
   WhatsAppIcon,
 } from './Icons'
 import { WA_MESSAGES, waLink } from '../config'
+import { api } from '../api'
 import { useSite } from '../ConfigContext'
 
 const EMPTY = { name: '', email: '', phone: '', message: '', company: '' }
 
 export default function Contact() {
-  const { contact, links } = useSite()
+  const { contact } = useSite()
   const [values, setValues] = useState(EMPTY)
   const [invalid, setInvalid] = useState([])
   const [status, setStatus] = useState('idle') // idle | sending | sent | error
@@ -58,49 +59,17 @@ export default function Contact() {
 
     setInvalid([])
 
-    // Option A — a form endpoint is configured: submit in the background.
-    if (links.formEndpoint) {
-      setStatus('sending')
-      try {
-        const response = await fetch(links.formEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({
-            name: values.name,
-            email: values.email,
-            phone: values.phone,
-            message: values.message,
-            source: 'Igloo Parking landing page',
-          }),
-        })
-        if (!response.ok) throw new Error('Request failed')
-        setStatus('sent')
-        setValues(EMPTY)
-      } catch {
-        setErrorText(
-          `We couldn\u2019t send that. Please email us at ${contact.email} or message us on WhatsApp.`,
-        )
-        setStatus('error')
-      }
-      return
+    setStatus('sending')
+    try {
+      await api.submitContact(values)
+      setStatus('sent')
+      setValues(EMPTY)
+    } catch {
+      setErrorText(
+        `We couldn\u2019t send that. Please email us at ${contact.email} or message us on WhatsApp.`,
+      )
+      setStatus('error')
     }
-
-    // Option B — no endpoint yet: hand off to the visitor's email app.
-    const subject = `Igloo Parking enquiry — ${values.name}`
-    const body = [
-      `Name: ${values.name}`,
-      `Email: ${values.email}`,
-      `Phone: ${values.phone || '—'}`,
-      '',
-      values.message,
-    ].join('\n')
-
-    window.location.href = `mailto:${contact.email}?subject=${encodeURIComponent(
-      subject,
-    )}&body=${encodeURIComponent(body)}`
-
-    setStatus('sent')
-    setValues(EMPTY)
   }
 
   return (
