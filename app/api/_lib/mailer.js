@@ -6,11 +6,7 @@ const DEFAULT_ENQUIRY_RECIPIENT = 'support@iglooparking.com'
 const safeHeader = (value) => String(value || '').replace(/[\r\n]+/g, ' ').trim()
 
 function enquiryRecipient() {
-  return (
-    process.env.WEBSITE_ENQUIRY_TO_EMAIL ||
-    process.env.CONTACT_TO_EMAIL ||
-    DEFAULT_ENQUIRY_RECIPIENT
-  )
+  return process.env.WEBSITE_ENQUIRY_TO_EMAIL || DEFAULT_ENQUIRY_RECIPIENT
 }
 
 function getTransport() {
