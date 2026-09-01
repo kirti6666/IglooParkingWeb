@@ -12,9 +12,8 @@ export function GET() {
       adminEmailConfigured: Boolean(process.env.ADMIN_EMAIL),
       adminPasswordValid:
         password.length >= 10 && /[a-zA-Z]/.test(password) && /[0-9]/.test(password),
-      smtpConfigured: Boolean(
-        process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS,
-      ),
+      smtpProvider: process.env.SMTP_HOST || 'smtp.gmail.com',
+      smtpConfigured: Boolean(process.env.SMTP_USER && process.env.SMTP_PASS),
       enquiryRecipient: process.env.WEBSITE_ENQUIRY_TO_EMAIL || 'support@iglooparking.com',
       enquiryEmailReady: enquiryMailerReady(),
     },

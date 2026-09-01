@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer'
 
 let transport = null
 const DEFAULT_ENQUIRY_RECIPIENT = 'support@iglooparking.com'
+const DEFAULT_SMTP_HOST = 'smtp.gmail.com'
 
 const safeHeader = (value) => String(value || '').replace(/[\r\n]+/g, ' ').trim()
 
@@ -10,13 +11,13 @@ function enquiryRecipient() {
 }
 
 function getTransport() {
-  if (!process.env.SMTP_HOST) return null
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return null
   const port = Number(process.env.SMTP_PORT || 465)
   const secure = process.env.SMTP_SECURE
     ? String(process.env.SMTP_SECURE) === 'true'
     : port === 465
   transport ??= nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
+    host: process.env.SMTP_HOST || DEFAULT_SMTP_HOST,
     port,
     secure,
     requireTLS: port === 587,
@@ -35,7 +36,7 @@ export async function sendResetEmail(to, resetUrl) {
     return
   }
   await mailer.sendMail({
-    from: process.env.MAIL_FROM || 'Igloo Parking <no-reply@iglooparking.com>',
+    from: process.env.MAIL_FROM || `Igloo Parking <${process.env.SMTP_USER}>`,
     to,
     subject: 'Reset your Igloo Parking admin password',
     text: [
@@ -51,8 +52,7 @@ export async function sendResetEmail(to, resetUrl) {
 
 export function enquiryMailerReady() {
   return Boolean(
-    process.env.SMTP_HOST &&
-      process.env.SMTP_USER &&
+    process.env.SMTP_USER &&
       process.env.SMTP_PASS &&
       enquiryRecipient(),
   )
