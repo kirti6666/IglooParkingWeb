@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { readDb, updateDb } from '../_lib/db'
 import { requireUser } from '../_lib/auth'
 import { guardMutation, jsonError, rateLimit, storageUnavailable } from '../_lib/http'
+import { sendValetEnquiryEmail } from '../_lib/mailer'
 
 const clean = (value, max = 180) => String(value || '').trim().slice(0, max)
 
@@ -45,6 +46,15 @@ export async function POST(request) {
   if (!/^\d{6}$/.test(lead.pin)) return jsonError('PIN code must contain 6 digits.')
 
   const record = { id: crypto.randomUUID(), ...lead, submittedAt: new Date().toISOString() }
+  try {
+    await sendValetEnquiryEmail(record)
+  } catch (error) {
+    console.error('[igloo] valet enquiry email failed:', error)
+    return jsonError(
+      "Sorry — we couldn't send your enquiry just now. Please try again in a moment.",
+      503,
+    )
+  }
   try {
     await updateDb(async (next) => {
       next.valetLeads ??= []

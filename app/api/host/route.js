@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { readDb, updateDb } from '../_lib/db'
 import { requireUser } from '../_lib/auth'
 import { guardMutation, jsonError, rateLimit, storageUnavailable } from '../_lib/http'
+import { sendHostRegistrationEmail } from '../_lib/mailer'
 
 const clean = (value, max = 180) => String(value || '').trim().slice(0, max)
 
@@ -52,6 +53,15 @@ export async function POST(request) {
     ...registration,
     otpRequired: body.otpRequired !== false,
     submittedAt: new Date().toISOString(),
+  }
+  try {
+    await sendHostRegistrationEmail(record)
+  } catch (error) {
+    console.error('[igloo] host registration email failed:', error)
+    return jsonError(
+      "Sorry — we couldn't send your registration just now. Please try again in a moment.",
+      503,
+    )
   }
   try {
     await updateDb(async (next) => {
