@@ -1,16 +1,13 @@
 /**
  * Talks to the API server.
  *
- * Development without NEXT_PUBLIC_API_URL runs in local-preview mode. Production is
- * intentionally locked to the same-origin API so an old build variable cannot
- * send admin credentials or requests to a stale deployment.
+ * The API is implemented with native Next.js route handlers and always shares
+ * the website's origin, keeping admin cookies first-party in every environment.
  */
 
-const BASE = process.env.NODE_ENV === 'production'
-  ? ''
-  : (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
+const BASE = ''
 
-export const hasBackend = process.env.NODE_ENV === 'production' || Boolean(BASE)
+export const hasBackend = true
 
 /** Keep managed upload paths portable in saved configuration. Older local
  *  configs may contain an absolute localhost URL, so migrate those too. */

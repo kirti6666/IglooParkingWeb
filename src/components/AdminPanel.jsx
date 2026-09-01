@@ -57,7 +57,7 @@ function Upload({ accept, onUploaded }) {
   if (!hasBackend) {
     return (
       <p className="ap__hint">
-        Uploads need the backend running. Paste a URL instead, or set NEXT_PUBLIC_API_URL.
+        Uploads are temporarily unavailable. Paste a hosted URL instead.
       </p>
     )
   }

@@ -6,12 +6,16 @@
   "description": "Marketing site for IGLOO Parking - connecting parking hosts and riders.",
   "scripts": {
     "dev": "next dev",
-    "dev:server": "npm --prefix server run dev",
     "build": "next build",
-    "start": "npm --prefix server start"
+    "start": "next start",
+    "reset-admin": "node scripts/reset-admin.mjs"
   },
   "dependencies": {
+    "@next/env": "16.3.4",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
     "next": "16.3.4",
+    "nodemailer": "^9.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

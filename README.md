@@ -43,62 +43,42 @@ Edits apply
 to the page instantly as you type; **Publish changes** makes them live for
 everyone. Five wrong sign-in attempts locks the form for 60 seconds.
 
-### Two modes
+## Native Next.js API
 
-The site runs in one of two modes depending on whether `NEXT_PUBLIC_API_URL` is set.
+All backend endpoints live in `app/api/`. The website and API run as one Next.js
+application on the same origin, so no separate server process or API URL is
+needed. Settings, the admin account and valet enquiries use a small JSON store.
+Locally it lives in `data/`; uploaded media lives in `uploads/`. Render stores
+both on the persistent disk configured in `render.yaml`.
 
-| | Local preview (no backend) | **Backend connected** |
-| --- | --- | --- |
-| Sign-in | Checked in the browser — **a deterrent, bypassable** | bcrypt on the server, httpOnly session cookie |
-| Password reset by email | Not available | Yes, single-use link, 30-min expiry |
-| Saving | This browser only | Published to every visitor |
-| Uploads | Not available (paste URLs) | Yes, images and video |
-
-Local preview is fine for design review. **Use the backend for anything real.**
-The panel tells you which mode it's in.
-
-## Backend
-
-Lives in `server/`. Node 18+. Settings, the admin account and valet enquiries
-use a small JSON database. Locally it lives in `server/data`; Render stores it
-with uploads on the persistent disk configured in `render.yaml`.
+Copy `.env.example` to `.env`, fill in the admin and JWT values, then run:
 
 ```bash
-cd server
-cp .env.example .env      # then fill it in — see below
 npm install
-npm start                 # http://localhost:4000
-```
-
-Then point the site at it, from the project root:
-
-```bash
-echo "NEXT_PUBLIC_API_URL=http://localhost:4000" > .env
-npm run dev
+npm run dev               # http://localhost:3000
 ```
 
 ### Can't sign in?
 
 Work down this list — it's almost always one of these.
 
-1. **Does the panel say "Local preview mode"?** Then `NEXT_PUBLIC_API_URL` isn't set. Create `.env` in the **project root** (not `server/`) with `NEXT_PUBLIC_API_URL=http://localhost:4000`, then **restart `npm run dev`** — Next.js only reads `.env` at startup.
-2. **Look at the server's terminal output on startup.** It prints the admin account's email, or a loud block explaining why no account exists.
-3. **Changed `ADMIN_EMAIL`/`ADMIN_PASSWORD` after the first run?** Those are only read when the account is first created. Run `npm run reset-admin` in `server/` to overwrite it with the current `.env` values.
-4. **Password rejected at seeding?** It needs 10+ characters including at least one letter and one number. The server says so at startup if it failed.
+1. Confirm `.env` exists in the project root and contains `JWT_SECRET`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD`, then restart `npm run dev`.
+2. Changed `ADMIN_EMAIL`/`ADMIN_PASSWORD` after the first sign-in? Run `npm run reset-admin` to overwrite the stored admin account.
+3. The password needs 10+ characters including at least one letter and one number.
 
-Completely stuck: stop the server, delete `server/data/db.json`, restart. That rebuilds the admin from `.env` — but it also wipes any settings you published.
+Completely stuck: stop Next.js, delete `data/db.json`, and restart. That rebuilds the admin from `.env` — but it also wipes any settings you published.
 
 ### Filling in `.env`
 
 | Variable | Notes |
 | --- | --- |
 | `JWT_SECRET` | 48+ random bytes. Generate: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seeds the first admin on first boot only. Password needs 10+ chars with a letter and a number |
-| `FRONTEND_ORIGIN` | Your site's URL. Used for CORS and to build reset links |
-| `SMTP_*` | Any provider. **Leave `SMTP_HOST` empty in development** and reset links print to the server console instead of being emailed |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seeds the first admin on first sign-in. Password needs 10+ chars with a letter and a number |
+| `FRONTEND_ORIGIN` | Your site's URL. Used to build reset links |
+| `SMTP_*` | Any provider. **Leave `SMTP_HOST` empty in development** and reset links print to the Next.js console instead of being emailed |
 | `IGLOO_STORAGE_DIR` | Optional persistent storage root. Render sets this to its mounted disk automatically |
 
-`.env`, `server/data/` and `server/uploads/` are gitignored. Never commit them.
+`.env`, `data/`, `uploads/`, and `storage/` are gitignored. Never commit them.
 
 ## Render deployment
 

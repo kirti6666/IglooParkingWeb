@@ -6,7 +6,7 @@ import { startSession, verifyCredentials } from '../auth'
 /**
  * Admin sign-in.
  *
- * With a backend connected (NEXT_PUBLIC_API_URL set), this is real authentication:
+ * The native Next.js API provides real authentication:
  * the server checks a bcrypt hash and issues an httpOnly session cookie, and
  * password reset by email works.
  *
@@ -229,11 +229,8 @@ export default function AdminLogin({ onSuccess, onClose }) {
             </button>
           ) : (
             <p className="ap__note ap__note--warn">
-              <strong>Local preview mode — this gate is not real security.</strong>{' '}
-              No backend is connected, so the password is checked in the browser and
-              can be bypassed. Changes save to this device only. Set{' '}
-              <code>NEXT_PUBLIC_API_URL</code> to enable real sign-in, password reset by
-              email, and uploads.
+              <strong>The API is unavailable.</strong> Reload the page after checking
+              the Next.js server and environment configuration.
             </p>
           )}
         </form>

@@ -10,18 +10,18 @@ services:
     branch: main
     region: singapore
     plan: 0.5c-512mb
-    buildCommand: npm ci && npm run build && npm ci --prefix server --omit=dev
+    buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeployTrigger: commit
     numInstances: 1
     disk:
       name: igloo-data
-      mountPath: /opt/render/project/src/server/storage
+      mountPath: /opt/render/project/src/storage
       sizeGB: 1
     envVars:
       - key: IGLOO_STORAGE_DIR
-        value: /opt/render/project/src/server/storage
+        value: /opt/render/project/src/storage
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_EMAIL

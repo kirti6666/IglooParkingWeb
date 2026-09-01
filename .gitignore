@@ -4,6 +4,6 @@ dist
 .env
 .env.*
 !.env.example
-server/data/
-server/uploads/*
-!server/uploads/.gitkeep
+data/
+uploads/
+storage/
