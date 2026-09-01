@@ -37,7 +37,8 @@ password?** and a reset link is emailed to you.
 Change your email or password any time from the **Security** tab — both ask for
 your current password first.
 
-Six tabs: Brand, Contact, Links, Photos & video, Valet enquiries, and Security.
+Seven tabs: Brand, Contact, Links, Photos & video, Host registrations, Valet
+enquiries, and Security.
 Edits apply
 to the page instantly as you type; **Publish changes** makes them live for
 everyone. Five wrong sign-in attempts locks the form for 60 seconds.
@@ -47,7 +48,8 @@ everyone. Five wrong sign-in attempts locks the form for 60 seconds.
 All backend endpoints live in `app/api/`. The website and API run as one Next.js
 application on the same origin, so no separate server process or API URL is
 needed. Vercel Blob stores uploaded images and videos plus encrypted snapshots
-of settings, the admin account, reset tokens, and valet enquiries.
+of settings, the admin account, reset tokens, host registrations, and valet
+enquiries.
 
 Copy `.env.example` to `.env`, fill in the admin and JWT values, then run:
 
@@ -110,6 +112,31 @@ Redeploy after adding or changing environment variables.
 3. Change `ADMIN_PASSWORD` from whatever seeded the account
 4. Keep `JWT_SECRET` stable and retain appropriate Blob backups
 5. Consider putting `/api/auth/*` behind a WAF or Cloudflare if the site gets traffic
+
+## Host registration
+
+The **Register your parking space** section is a live form — name, mobile
+number, email, building name (optional), street name, pincode, parking place
+location, and whether OTP authentication is required to confirm a booking.
+
+Submissions are validated on both sides, rate limited to 10 an hour per IP,
+and stored in the encrypted database. Read them back in the admin panel's
+**Host registrations** tab, newest first. The parking place location is a text
+field; wiring it to a real map picker needs a maps provider and API key.
+
+## Logo
+
+`brand.logo` in `src/config.js` replaces the built-in SVG mark with a supplied
+lockup. Set it in the admin panel's **Brand** tab — upload a file there, or
+paste the path to a file you put in `public/` (e.g. `/logo.png`). Crop the
+surrounding whitespace first: it is displayed at header height.
+
+`brand.logoLight` is an optional variant used over the hero and in the footer,
+where the background is dark. It falls back to `brand.logo` when empty. Leave
+both empty to keep the built-in mark.
+
+A supplied lockup usually carries its own wordmark, so the "Igloo Parking" text
+beside the mark is dropped whenever one is set.
 
 ## Photos and video
 
@@ -211,7 +238,7 @@ The frame, notch, shadow, and caption all stay as they are.
 | 2 | Problem breather | `Problem.jsx` |
 | 3 | Rider features | `Features.jsx` → `RiderFeatures` |
 | 4 | Host features | `Features.jsx` → `HostFeatures` |
-| — | Host registration details | `HostRegistration.jsx` |
+| — | Host registration form | `HostRegistration.jsx` |
 | 5 | How it works — 3 steps | `HowItWorks.jsx` |
 | 6 | Trust & support strip | `Trust.jsx` |
 | 7 | App download | `Download.jsx` |

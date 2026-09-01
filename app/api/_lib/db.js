@@ -3,7 +3,7 @@ import { get, list, put } from '@vercel/blob'
 import { defaultConfig } from '../../../src/config.js'
 
 const DATABASE_PREFIX = 'igloo-private/database/'
-const EMPTY = { config: null, users: [], resetTokens: [], valetLeads: [] }
+const EMPTY = { config: null, users: [], resetTokens: [], valetLeads: [], hostRegistrations: [] }
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
 let writing = Promise.resolve()
@@ -21,6 +21,7 @@ function normalise(value) {
   db.users ??= []
   db.resetTokens ??= []
   db.valetLeads ??= []
+  db.hostRegistrations ??= []
   if (!db.config) {
     db.config = clone(defaultConfig)
     delete db.config.admin

@@ -13,6 +13,14 @@ export const defaultConfig = {
     name: 'Igloo',
     suffix: 'Parking',
     tagline: 'Park. Share. Earn.',
+    /* A supplied logo lockup. Leave empty to use the built-in SVG mark.
+       Upload one in the admin panel's Brand tab, or drop a file in public/
+       and put its path here (e.g. '/logo.png'). Crop the surrounding
+       whitespace first — it is displayed at header height. */
+    logo: '',
+    /* Optional light version, used over the hero and in the footer. Falls
+       back to `logo` when empty. */
+    logoLight: '',
   },
 
   /* Theme colours. The admin panel writes these straight onto CSS

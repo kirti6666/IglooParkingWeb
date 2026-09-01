@@ -105,6 +105,10 @@ export const api = {
     request('/api/valet', { method: 'POST', body: details }),
   getValetLeads: () => request('/api/valet'),
 
+  submitHostRegistration: (details) =>
+    request('/api/host', { method: 'POST', body: details }),
+  getHostRegistrations: () => request('/api/host'),
+
   async upload(file) {
     // Fail fast instead of spending a slow mobile upload on a file the server
     // is going to refuse. Keep in step with MAX_BYTES in app/api/media/route.js.

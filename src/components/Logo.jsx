@@ -1,18 +1,39 @@
 /**
- * Igloo logo: a snow dome built from courses of blocks, with the entrance
- * arch doing double duty as the parking "P".
+ * Igloo logo.
  *
- * To use a supplied logo file instead, replace the <svg> below with:
- *   <img src="/logo.svg" alt="Igloo Parking" className="logo__mark" height="34" />
+ * A supplied lockup (brand.logo) wins when one is set — upload it in the
+ * admin panel's Brand tab, or drop a file in public/ and point brand.logo at
+ * it. Otherwise this falls back to the built-in SVG: a snow dome built from
+ * courses of blocks, with the entrance arch doing double duty as the parking
+ * "P".
+ *
+ * A supplied lockup usually carries its own wordmark, so the text beside the
+ * mark is dropped in that case rather than printing the name twice.
  */
 
 import { useSite } from '../ConfigContext'
+import { mediaUrl } from '../api'
 
 export default function Logo({ light = false, size = 36, href = '#top' }) {
   const { brand } = useSite()
+  const supplied =
+    (light ? brand.logoLight?.trim() : '') || brand.logo?.trim() || ''
   const dome = light ? '#ffffff' : '#1782a6'
   const door = light ? '#1782a6' : '#ffffff'
   const line = light ? 'rgba(23,130,166,0.55)' : 'rgba(255,255,255,0.75)'
+
+  if (supplied) {
+    return (
+      <a className={`logo logo--image${light ? ' logo--light' : ''}`} href={href}>
+        <img
+          className="logo__img"
+          src={mediaUrl(supplied)}
+          alt={`${brand.name} ${brand.suffix}`}
+          style={{ height: Math.round(size * 1.15) }}
+        />
+      </a>
+    )
+  }
 
   return (
     <a className={`logo${light ? ' logo--light' : ''}`} href={href}>
