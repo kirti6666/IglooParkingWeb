@@ -18,9 +18,8 @@ npm run dev      # http://localhost:3000
 npm run build    # creates the production Next.js build
 ```
 
-Production deployment is defined in `render.yaml`. Render builds the React site,
-runs the API from the same origin, and stores the database/uploads on a persistent
-disk. Commits pushed to `main` deploy automatically.
+Production runs on Vercel. Upstash Redis stores private application data and
+Vercel Blob stores admin-uploaded images and videos.
 
 ---
 
@@ -47,9 +46,8 @@ everyone. Five wrong sign-in attempts locks the form for 60 seconds.
 
 All backend endpoints live in `app/api/`. The website and API run as one Next.js
 application on the same origin, so no separate server process or API URL is
-needed. Settings, the admin account and valet enquiries use a small JSON store.
-Locally it lives in `data/`; uploaded media lives in `uploads/`. Render stores
-both on the persistent disk configured in `render.yaml`.
+needed. Upstash Redis stores settings, the admin account, reset tokens, and valet
+enquiries. Public Vercel Blob stores uploaded images and videos.
 
 Copy `.env.example` to `.env`, fill in the admin and JWT values, then run:
 
@@ -66,7 +64,8 @@ Work down this list — it's almost always one of these.
 2. Changed `ADMIN_EMAIL`/`ADMIN_PASSWORD` after the first sign-in? Run `npm run reset-admin` to overwrite the stored admin account.
 3. The password needs 10+ characters including at least one letter and one number.
 
-Completely stuck: stop Next.js, delete `data/db.json`, and restart. That rebuilds the admin from `.env` — but it also wipes any settings you published.
+Completely stuck: change `ADMIN_CREDENTIALS_VERSION` and redeploy to deliberately
+rotate the stored production credentials.
 
 ### Filling in `.env`
 
@@ -76,32 +75,21 @@ Completely stuck: stop Next.js, delete `data/db.json`, and restart. That rebuild
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seeds the first admin on first sign-in. Password needs 10+ chars with a letter and a number |
 | `FRONTEND_ORIGIN` | Your site's URL. Used to build reset links |
 | `SMTP_*` | Any provider. **Leave `SMTP_HOST` empty in development** and reset links print to the Next.js console instead of being emailed |
-| `IGLOO_STORAGE_DIR` | Optional persistent storage root. Render sets this to its mounted disk automatically |
+| `BLOB_READ_WRITE_TOKEN` | Added automatically when the Vercel Blob store is connected |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Added automatically by the Vercel Upstash Redis integration |
 
-`.env`, `data/`, `uploads/`, and `storage/` are gitignored. Never commit them.
+`.env` is gitignored. Never commit storage tokens or other secrets.
 
-## Render deployment
+## Vercel deployment
 
-The repository ships a Render Blueprint at `render.yaml` that creates one
-same-origin Node web service. It serves both Next.js and `/api`, which keeps the
-admin session cookie first-party and avoids frontend/API CORS problems.
+Connect this GitHub repository to Vercel, then connect two stores to the project:
 
-The Blueprint provides:
+- a public Vercel Blob store for admin media uploads
+- an Upstash Redis store for private admin and website data
 
-- automatic deployment for every commit pushed to `main`
-- a `/api/health` deployment health check
-- a generated `JWT_SECRET`
-- a 1 GB persistent disk for the JSON database and admin media uploads
-- the production admin email `support@iglooparking.com`
-- first-deploy prompts for the secret `ADMIN_PASSWORD` and an
-  `ADMIN_CREDENTIALS_VERSION` rotation label
-- versioned admin credential rotation so a deliberate version bump updates the
-  persisted account exactly once without overriding later admin-panel changes
-
-In Render, create or sync a Blueprint for this repository once. Persistent disks
-require a paid web-service plan. After that one-time setup, normal Git pushes are
-automatic. Add SMTP environment variables in the Render dashboard if password
-reset links should be emailed rather than printed to the service log.
+Set `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_CREDENTIALS_VERSION`,
+`FRONTEND_ORIGIN`, and optional `SMTP_*` values in Vercel Project Settings.
+Redeploy after adding or changing environment variables.
 
 ### What protects it
 
@@ -121,13 +109,13 @@ reset links should be emailed rather than printed to the service log.
 1. Serve over **HTTPS** — the session cookie sets `secure` when `NODE_ENV=production`
 2. Set `NODE_ENV=production`
 3. Change `ADMIN_PASSWORD` from whatever seeded the account
-4. Keep Render disk snapshots/backups — the JSON database and uploaded media are your live site content
+4. Retain appropriate Upstash and Blob backups for production data
 5. Consider putting `/api/auth/*` behind a WAF or Cloudflare if the site gets traffic
 
 ## Photos and video
 
 With the backend connected, the Photos & video tab accepts direct uploads or
-hosted URLs. Render stores uploaded files on the persistent disk.
+hosted URLs. Vercel Blob stores uploaded files.
 
 - **Photos:** four slots, landscape, roughly 1200×900. Empty slots remain hidden
   until an administrator adds an image.
@@ -267,9 +255,9 @@ to-dos before launch.
 
 **Must do before going live**
 
-1. Sync `render.yaml` as a Render Blueprint and provide `ADMIN_PASSWORD` and an `ADMIN_CREDENTIALS_VERSION` label when prompted. The admin email is fixed to `support@iglooparking.com`. For an existing service, update the password and change the version label together to rotate the persisted account once.
-2. Configure `SMTP_*` in Render if password-reset emails are required. Without SMTP, reset links print to the service log.
-3. Use the Render HTTPS URL or attach your custom domain.
+1. Connect Vercel Blob and Upstash Redis to the Vercel project.
+2. Configure `ADMIN_*`, `JWT_SECRET`, `FRONTEND_ORIGIN`, and `SMTP_*` in Vercel.
+3. Use the Vercel HTTPS URL or attach your custom domain.
 4. Swap in Apple's official App Store badge — theirs is required by their guidelines. Download from [Apple's marketing resources](https://developer.apple.com/app-store/marketing/guidelines/) and replace the markup in `src/components/AppStoreBadge.jsx`.
 5. Have counsel review the included **Terms of Use** and **Privacy Policy** before launch.
 
@@ -282,7 +270,7 @@ to-dos before launch.
 
 **Ongoing**
 
-10. Retain Render disk snapshots/backups for the database and uploaded media.
+10. Retain Upstash and Blob backups for the database and uploaded media.
 
 ## Responsive behaviour
 

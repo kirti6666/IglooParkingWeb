@@ -1,64 +1,80 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import path from 'node:path'
+import crypto from 'node:crypto'
+import { Redis } from '@upstash/redis'
 import { defaultConfig } from '../../../src/config.js'
 
-const storageRoot = process.env.IGLOO_STORAGE_DIR?.trim() || process.cwd()
-
-export const DATA_DIR = path.join(storageRoot, 'data')
-export const UPLOAD_DIR = path.join(storageRoot, 'uploads')
-const DB_PATH = path.join(DATA_DIR, 'db.json')
-
+const DB_KEY = 'igloo:database:v1'
+const LOCK_KEY = 'igloo:database-lock:v1'
 const EMPTY = { config: null, users: [], resetTokens: [], valetLeads: [] }
-let cache = null
-let writing = Promise.resolve()
-let directoriesReady = null
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
+let client = null
 
-export function ensureStorage() {
-  directoriesReady ??= Promise.all([
-    mkdir(DATA_DIR, { recursive: true }),
-    mkdir(UPLOAD_DIR, { recursive: true }),
-  ])
-  return directoriesReady
+function redis() {
+  if (client) return client
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+  if (!url || !token) {
+    throw new Error(
+      'Redis is not connected. Add an Upstash Redis store to this Vercel project.',
+    )
+  }
+  client = new Redis({ url, token })
+  return client
+}
+
+function normalise(value) {
+  const db = value && typeof value === 'object' ? value : clone(EMPTY)
+  db.users ??= []
+  db.resetTokens ??= []
+  db.valetLeads ??= []
+  if (!db.config) {
+    db.config = clone(defaultConfig)
+    delete db.config.admin
+  }
+  return db
 }
 
 export async function readDb() {
-  if (cache) return cache
-  await ensureStorage()
-  try {
-    cache = JSON.parse(await readFile(DB_PATH, 'utf8'))
-  } catch {
-    cache = clone(EMPTY)
-  }
+  const store = redis()
+  const existing = await store.get(DB_KEY)
+  if (existing) return normalise(existing)
 
-  cache.users ??= []
-  cache.resetTokens ??= []
-  cache.valetLeads ??= []
-
-  if (!cache.config) {
-    cache.config = clone(defaultConfig)
-    delete cache.config.admin
-    await writeDb(cache)
-  }
-
-  return cache
+  const initial = normalise(null)
+  await store.set(DB_KEY, initial, { nx: true })
+  return normalise((await store.get(DB_KEY)) || initial)
 }
 
 export async function writeDb(next) {
-  await ensureStorage()
-  cache = next
-  writing = writing.then(async () => {
-    const temporaryPath = `${DB_PATH}.${process.pid}.tmp`
-    await writeFile(temporaryPath, JSON.stringify(next, null, 2), 'utf8')
-    await rename(temporaryPath, DB_PATH)
-  })
-  return writing
+  await redis().set(DB_KEY, next)
+}
+
+async function acquireLock() {
+  const store = redis()
+  const token = crypto.randomUUID()
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const acquired = await store.set(LOCK_KEY, token, { nx: true, px: 5000 })
+    if (acquired === 'OK') return token
+    await new Promise((resolve) => setTimeout(resolve, 50 + attempt * 10))
+  }
+  throw new Error('The database is busy. Please try again.')
+}
+
+async function releaseLock(token) {
+  await redis().eval(
+    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+    [LOCK_KEY],
+    [token],
+  )
 }
 
 export async function updateDb(mutator) {
-  const next = clone(await readDb())
-  await mutator(next)
-  await writeDb(next)
-  return next
+  const lock = await acquireLock()
+  try {
+    const next = clone(await readDb())
+    await mutator(next)
+    await writeDb(next)
+    return next
+  } finally {
+    await releaseLock(lock).catch(() => {})
+  }
 }

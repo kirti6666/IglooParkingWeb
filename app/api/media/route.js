@@ -1,9 +1,8 @@
 import crypto from 'node:crypto'
 import path from 'node:path'
-import { writeFile } from 'node:fs/promises'
+import { put } from '@vercel/blob'
 import { NextResponse } from 'next/server'
 import { requireUser } from '../_lib/auth'
-import { ensureStorage, UPLOAD_DIR } from '../_lib/db'
 import { guardMutation, jsonError } from '../_lib/http'
 
 export const runtime = 'nodejs'
@@ -49,10 +48,13 @@ export async function POST(request) {
   if (!validMagic(buffer, ext)) return jsonError("That file isn't a valid image or video.")
 
   const filename = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`
-  await ensureStorage()
-  await writeFile(path.join(UPLOAD_DIR, filename), buffer)
+  const blob = await put(`igloo-media/${filename}`, buffer, {
+    access: 'public',
+    addRandomSuffix: false,
+    contentType: file.type,
+  })
   return NextResponse.json(
-    { url: `/uploads/${filename}`, filename, bytes: file.size },
+    { url: blob.url, filename, bytes: file.size },
     { status: 201 },
   )
 }

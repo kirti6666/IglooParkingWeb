@@ -4,10 +4,7 @@
  *
  * This object is the shipped default. The admin panel (open the site
  * with #admin in the URL) edits a copy of it live, saves it to the
- * browser, and can export it as JSON.
- *
- * To make an edit permanent for every visitor: export the JSON from the
- * admin panel and paste the values back into this file, then redeploy.
+ * browser, publishes it through the Next.js API, and can export it as JSON.
  * ---------------------------------------------------------------
  */
 

@@ -60,7 +60,7 @@ async function request(path, { method = 'GET', body, form } = {}) {
   // reading properties from null.
   if (res.status !== 204 && data === null) {
     const err = new Error(
-      'The API backend is unavailable. Deploy this site as a Render web service and try again.',
+      'The API backend is unavailable. Check the Vercel deployment and storage connections.',
     )
     err.status = res.status
     throw err

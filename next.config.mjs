@@ -4,9 +4,6 @@ const nextConfig = {
   turbopack: {
     root: process.cwd(),
   },
-  async rewrites() {
-    return [{ source: '/uploads/:path*', destination: '/api/media/file/:path*' }]
-  },
   async headers() {
     return [
       {
