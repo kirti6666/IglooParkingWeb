@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@next/env": "16.3.4",
-    "@upstash/redis": "^1.35.7",
     "@vercel/blob": "^2.0.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",

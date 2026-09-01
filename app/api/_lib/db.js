@@ -1,25 +1,19 @@
 import crypto from 'node:crypto'
-import { Redis } from '@upstash/redis'
+import { get, list, put } from '@vercel/blob'
 import { defaultConfig } from '../../../src/config.js'
 
-const DB_KEY = 'igloo:database:v1'
-const LOCK_KEY = 'igloo:database-lock:v1'
+const DATABASE_PREFIX = 'igloo-private/database/'
 const EMPTY = { config: null, users: [], resetTokens: [], valetLeads: [] }
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
-let client = null
+let writing = Promise.resolve()
 
-function redis() {
-  if (client) return client
-  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
-  if (!url || !token) {
-    throw new Error(
-      'Redis is not connected. Add an Upstash Redis store to this Vercel project.',
-    )
+function encryptionKey() {
+  const secret = process.env.JWT_SECRET
+  if (!secret || secret.length < 32) {
+    throw new Error('JWT_SECRET is missing or too short (need 32+ characters).')
   }
-  client = new Redis({ url, token })
-  return client
+  return crypto.createHash('sha256').update(secret).digest()
 }
 
 function normalise(value) {
@@ -34,47 +28,72 @@ function normalise(value) {
   return db
 }
 
-export async function readDb() {
-  const store = redis()
-  const existing = await store.get(DB_KEY)
-  if (existing) return normalise(existing)
+function encrypt(value) {
+  const iv = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), iv)
+  const ciphertext = Buffer.concat([
+    cipher.update(JSON.stringify(value), 'utf8'),
+    cipher.final(),
+  ])
+  return JSON.stringify({
+    version: 1,
+    iv: iv.toString('base64'),
+    tag: cipher.getAuthTag().toString('base64'),
+    data: ciphertext.toString('base64'),
+  })
+}
 
-  const initial = normalise(null)
-  await store.set(DB_KEY, initial, { nx: true })
-  return normalise((await store.get(DB_KEY)) || initial)
+function decrypt(payload) {
+  const envelope = JSON.parse(payload)
+  if (envelope.version !== 1) throw new Error('Unsupported database snapshot version.')
+  const decipher = crypto.createDecipheriv(
+    'aes-256-gcm',
+    encryptionKey(),
+    Buffer.from(envelope.iv, 'base64'),
+  )
+  decipher.setAuthTag(Buffer.from(envelope.tag, 'base64'))
+  const plaintext = Buffer.concat([
+    decipher.update(Buffer.from(envelope.data, 'base64')),
+    decipher.final(),
+  ])
+  return JSON.parse(plaintext.toString('utf8'))
+}
+
+async function latestSnapshot() {
+  const { blobs } = await list({ prefix: DATABASE_PREFIX, limit: 1000 })
+  return blobs.sort(
+    (left, right) => new Date(right.uploadedAt).getTime() - new Date(left.uploadedAt).getTime(),
+  )[0]
+}
+
+export async function readDb() {
+  const snapshot = await latestSnapshot()
+  if (!snapshot) return normalise(null)
+
+  const result = await get(snapshot.url, { access: 'public', useCache: false })
+  if (!result || result.statusCode !== 200 || !result.stream) return normalise(null)
+  const payload = await new Response(result.stream).text()
+  return normalise(decrypt(payload))
 }
 
 export async function writeDb(next) {
-  await redis().set(DB_KEY, next)
-}
-
-async function acquireLock() {
-  const store = redis()
-  const token = crypto.randomUUID()
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const acquired = await store.set(LOCK_KEY, token, { nx: true, px: 5000 })
-    if (acquired === 'OK') return token
-    await new Promise((resolve) => setTimeout(resolve, 50 + attempt * 10))
-  }
-  throw new Error('The database is busy. Please try again.')
-}
-
-async function releaseLock(token) {
-  await redis().eval(
-    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-    [LOCK_KEY],
-    [token],
-  )
+  const pathname = `${DATABASE_PREFIX}${Date.now()}-${crypto.randomUUID()}.enc`
+  await put(pathname, encrypt(next), {
+    access: 'public',
+    addRandomSuffix: false,
+    contentType: 'application/octet-stream',
+    cacheControlMaxAge: 60,
+  })
 }
 
 export async function updateDb(mutator) {
-  const lock = await acquireLock()
-  try {
+  let result
+  writing = writing.then(async () => {
     const next = clone(await readDb())
     await mutator(next)
     await writeDb(next)
-    return next
-  } finally {
-    await releaseLock(lock).catch(() => {})
-  }
+    result = next
+  })
+  await writing
+  return result
 }

@@ -18,8 +18,8 @@ npm run dev      # http://localhost:3000
 npm run build    # creates the production Next.js build
 ```
 
-Production runs on Vercel. Upstash Redis stores private application data and
-Vercel Blob stores admin-uploaded images and videos.
+Production runs on Vercel Blob. Uploaded media is stored normally; the small
+private application database is stored as AES-256-GCM encrypted snapshots.
 
 ---
 
@@ -46,8 +46,8 @@ everyone. Five wrong sign-in attempts locks the form for 60 seconds.
 
 All backend endpoints live in `app/api/`. The website and API run as one Next.js
 application on the same origin, so no separate server process or API URL is
-needed. Upstash Redis stores settings, the admin account, reset tokens, and valet
-enquiries. Public Vercel Blob stores uploaded images and videos.
+needed. Vercel Blob stores uploaded images and videos plus encrypted snapshots
+of settings, the admin account, reset tokens, and valet enquiries.
 
 Copy `.env.example` to `.env`, fill in the admin and JWT values, then run:
 
@@ -71,21 +71,20 @@ rotate the stored production credentials.
 
 | Variable | Notes |
 | --- | --- |
-| `JWT_SECRET` | 48+ random bytes. Generate: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
+| `JWT_SECRET` | 48+ random bytes used for sessions and database encryption. Generate: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seeds the first admin on first sign-in. Password needs 10+ chars with a letter and a number |
 | `FRONTEND_ORIGIN` | Your site's URL. Used to build reset links |
 | `SMTP_*` | Any provider. **Leave `SMTP_HOST` empty in development** and reset links print to the Next.js console instead of being emailed |
 | `BLOB_READ_WRITE_TOKEN` | Added automatically when the Vercel Blob store is connected |
-| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Added automatically by the Vercel Upstash Redis integration |
 
 `.env` is gitignored. Never commit storage tokens or other secrets.
 
 ## Vercel deployment
 
-Connect this GitHub repository to Vercel, then connect two stores to the project:
+Connect this GitHub repository to Vercel, then connect a public Blob store:
 
 - a public Vercel Blob store for admin media uploads
-- an Upstash Redis store for private admin and website data
+- encrypted Blob snapshots for private admin and website data
 
 Set `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_CREDENTIALS_VERSION`,
 `FRONTEND_ORIGIN`, and optional `SMTP_*` values in Vercel Project Settings.
@@ -109,7 +108,7 @@ Redeploy after adding or changing environment variables.
 1. Serve over **HTTPS** — the session cookie sets `secure` when `NODE_ENV=production`
 2. Set `NODE_ENV=production`
 3. Change `ADMIN_PASSWORD` from whatever seeded the account
-4. Retain appropriate Upstash and Blob backups for production data
+4. Keep `JWT_SECRET` stable and retain appropriate Blob backups
 5. Consider putting `/api/auth/*` behind a WAF or Cloudflare if the site gets traffic
 
 ## Photos and video
@@ -255,7 +254,7 @@ to-dos before launch.
 
 **Must do before going live**
 
-1. Connect Vercel Blob and Upstash Redis to the Vercel project.
+1. Connect a public Vercel Blob store to the Vercel project.
 2. Configure `ADMIN_*`, `JWT_SECRET`, `FRONTEND_ORIGIN`, and `SMTP_*` in Vercel.
 3. Use the Vercel HTTPS URL or attach your custom domain.
 4. Swap in Apple's official App Store badge — theirs is required by their guidelines. Download from [Apple's marketing resources](https://developer.apple.com/app-store/marketing/guidelines/) and replace the markup in `src/components/AppStoreBadge.jsx`.
@@ -270,7 +269,7 @@ to-dos before launch.
 
 **Ongoing**
 
-10. Retain Upstash and Blob backups for the database and uploaded media.
+10. Retain Blob backups for the encrypted database and uploaded media.
 
 ## Responsive behaviour
 
