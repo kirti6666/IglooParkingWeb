@@ -88,13 +88,19 @@ export async function writeDb(next) {
 }
 
 export async function updateDb(mutator) {
-  let result
-  writing = writing.then(async () => {
+  const run = writing.then(async () => {
     const next = clone(await readDb())
     await mutator(next)
     await writeDb(next)
-    result = next
+    return next
   })
-  await writing
-  return result
+  // The queue exists to serialise writes, not to spread one caller's failure.
+  // Chaining `run` itself would hand its rejection to every later write, so a
+  // single blob hiccup would keep failing until the instance was recycled —
+  // the mutator would never even run. Wait on settlement instead.
+  writing = run.then(
+    () => {},
+    () => {},
+  )
+  return run
 }

@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { readDb, updateDb } from '../_lib/db'
 import { requireUser } from '../_lib/auth'
-import { guardMutation, jsonError, rateLimit } from '../_lib/http'
+import { guardMutation, jsonError, rateLimit, storageUnavailable } from '../_lib/http'
 
 const clean = (value, max = 180) => String(value || '').trim().slice(0, max)
 
@@ -45,18 +45,26 @@ export async function POST(request) {
   if (!/^\d{6}$/.test(lead.pin)) return jsonError('PIN code must contain 6 digits.')
 
   const record = { id: crypto.randomUUID(), ...lead, submittedAt: new Date().toISOString() }
-  await updateDb(async (next) => {
-    next.valetLeads ??= []
-    next.valetLeads.push(record)
-  })
+  try {
+    await updateDb(async (next) => {
+      next.valetLeads ??= []
+      next.valetLeads.push(record)
+    })
+  } catch (error) {
+    return storageUnavailable(error, 'send your enquiry')
+  }
   return NextResponse.json({ ok: true, id: record.id }, { status: 201 })
 }
 
 export async function GET(request) {
   const { response } = await requireUser(request)
   if (response) return response
-  const db = await readDb()
-  return NextResponse.json({
-    leads: Array.isArray(db.valetLeads) ? [...db.valetLeads].reverse() : [],
-  })
+  try {
+    const db = await readDb()
+    return NextResponse.json({
+      leads: Array.isArray(db.valetLeads) ? [...db.valetLeads].reverse() : [],
+    })
+  } catch (error) {
+    return storageUnavailable(error, 'load the enquiries')
+  }
 }
