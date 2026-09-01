@@ -76,11 +76,13 @@ export const defaultConfig = {
         caption: 'Open parking lot',
       },
     ],
-    video: {
-      src: '', // an .mp4 URL, or leave empty
-      poster: '', // a still image shown before playback
-      caption: 'See how Igloo works',
-    },
+    videos: [
+      {
+        src: '', // an .mp4 URL, or leave empty
+        poster: '', // a still image shown before playback
+        caption: 'See how Igloo works',
+      },
+    ],
   },
 
   footerLinks: [

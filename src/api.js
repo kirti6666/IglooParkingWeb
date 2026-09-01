@@ -104,4 +104,11 @@ export const api = {
     }
     return { ...data, url: portableMediaUrl(data.url) }
   },
+
+  async deleteMedia(url) {
+    if (!url || typeof url !== 'string' || !url.includes('/igloo-media/')) return false
+    const filename = decodeURIComponent(url.split('/').at(-1).split('?')[0])
+    await request(`/api/media/${encodeURIComponent(filename)}`, { method: 'DELETE' })
+    return true
+  },
 }

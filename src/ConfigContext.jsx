@@ -27,6 +27,27 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
+function setAtPath(value, path, nextValue) {
+  const next = clone(value)
+  const keys = path.split('.')
+  let node = next
+  for (const key of keys.slice(0, -1)) node = node[key]
+  node[keys.at(-1)] = nextValue
+  return next
+}
+
+/** Convert the original single-video shape to the newer card collection while
+ * keeping already-published configurations fully backwards compatible. */
+function normaliseConfig(saved) {
+  const next = merge(defaultConfig, saved)
+  if (!Array.isArray(saved?.media?.videos) && saved?.media?.video) {
+    next.media.videos = [saved.media.video]
+  }
+  if (!Array.isArray(next.media?.videos)) next.media.videos = []
+  delete next.media.video
+  return next
+}
+
 /** Storage can throw in sandboxed frames and private modes, so every access
  *  is guarded — the site must work whether or not it succeeds. */
 function readStored() {
@@ -49,9 +70,10 @@ function writeStored(config) {
 
 export function ConfigProvider({ children }) {
   const [config, setConfig] = useState(() =>
-    merge(defaultConfig, hasBackend ? null : readStored()),
+    normaliseConfig(hasBackend ? null : readStored()),
   )
   const [saving, setSaving] = useState(false)
+  const [ready, setReady] = useState(!hasBackend)
 
   // With a backend, the server is the source of truth for every visitor.
   useEffect(() => {
@@ -60,10 +82,13 @@ export function ConfigProvider({ children }) {
     api
       .getConfig()
       .then((remote) => {
-        if (!cancelled && remote) setConfig(merge(defaultConfig, remote))
+        if (!cancelled && remote) setConfig(normaliseConfig(remote))
       })
       .catch(() => {
         /* API unreachable — the shipped defaults still render the site */
+      })
+      .finally(() => {
+        if (!cancelled) setReady(true)
       })
     return () => {
       cancelled = true
@@ -86,68 +111,68 @@ export function ConfigProvider({ children }) {
     )
   }, [config.colors])
 
+  async function publish(candidate) {
+    if (!hasBackend) {
+      return writeStored(candidate)
+        ? { ok: true, message: 'Saved to this browser only — no backend is connected.' }
+        : { ok: false, message: "This browser blocked storage, so nothing was saved." }
+    }
+    setSaving(true)
+    try {
+      const payload = clone(candidate)
+      delete payload.admin
+      delete payload.media?.video
+      if (Array.isArray(payload.media?.images)) {
+        payload.media.images = payload.media.images.map((image) => ({
+          ...image,
+          src: portableMediaUrl(image?.src),
+        }))
+      }
+      if (Array.isArray(payload.media?.videos)) {
+        payload.media.videos = payload.media.videos.map((video) => ({
+          ...video,
+          src: portableMediaUrl(video?.src),
+          poster: portableMediaUrl(video?.poster),
+        }))
+      }
+      await api.saveConfig(payload)
+      return { ok: true, message: 'Published. Every visitor sees this now.' }
+    } catch (err) {
+      return {
+        ok: false,
+        message:
+          err.status === 401
+            ? 'Your session expired. Sign in again.'
+            : `Could not publish: ${err.message}`,
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const value = useMemo(
     () => ({
       config,
+      ready,
       /** Update one field by path, e.g. update('contact.email', '…') */
       update(path, val) {
-        setConfig((prev) => {
-          const next = clone(prev)
-          const keys = path.split('.')
-          let node = next
-          for (const key of keys.slice(0, -1)) node = node[key]
-          node[keys.at(-1)] = val
-          return next
-        })
+        setConfig((prev) => setAtPath(prev, path, val))
       },
-      replace: (next) => setConfig(merge(defaultConfig, next)),
+      replace: (next) => setConfig(normaliseConfig(next)),
       saving,
       /** Publishes to the server when there is one; otherwise saves to this
        *  browser only. Returns a short message describing what happened. */
-      async save() {
-        if (!hasBackend) {
-          return writeStored(config)
-            ? { ok: true, message: 'Saved to this browser only — no backend is connected.' }
-            : { ok: false, message: "This browser blocked storage, so nothing was saved." }
-        }
-        setSaving(true)
-        try {
-          const payload = clone(config)
-          delete payload.admin
-          if (Array.isArray(payload.media?.images)) {
-            payload.media.images = payload.media.images.map((image) => ({
-              ...image,
-              src: portableMediaUrl(image?.src),
-            }))
-          }
-          if (payload.media?.video) {
-            payload.media.video.src = portableMediaUrl(payload.media.video.src)
-            payload.media.video.poster = portableMediaUrl(payload.media.video.poster)
-          }
-          await api.saveConfig(payload)
-          return { ok: true, message: 'Published. Every visitor sees this now.' }
-        } catch (err) {
-          return {
-            ok: false,
-            message:
-              err.status === 401
-                ? 'Your session expired. Sign in again.'
-                : `Could not publish: ${err.message}`,
-          }
-        } finally {
-          setSaving(false)
-        }
-      },
+      save: (candidate = config) => publish(normaliseConfig(candidate)),
       reset() {
         try {
           window.localStorage.removeItem(STORAGE_KEY)
         } catch {
           /* nothing to clear */
         }
-        setConfig(defaultConfig)
+        setConfig(normaliseConfig(null))
       },
     }),
-    [config, saving],
+    [config, ready, saving],
   )
 
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>
@@ -158,6 +183,14 @@ export function useSite() {
   const ctx = useContext(ConfigContext)
   if (!ctx) throw new Error('useSite must be used inside <ConfigProvider>')
   return ctx.config
+}
+
+/** Lets media-heavy sections avoid flashing shipped placeholder content while
+ * the published server configuration is still loading. */
+export function useConfigReady() {
+  const ctx = useContext(ConfigContext)
+  if (!ctx) throw new Error('useConfigReady must be used inside <ConfigProvider>')
+  return ctx.ready
 }
 
 /** Full access including mutators — used by the admin panel. */

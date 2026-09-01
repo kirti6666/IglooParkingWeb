@@ -46,7 +46,7 @@ function Upload({ accept, onUploaded }) {
     setBusy(true)
     try {
       const { url } = await api.upload(file)
-      onUploaded(url)
+      await onUploaded(url)
     } catch (e) {
       setErr(e.message)
     } finally {
@@ -341,7 +341,7 @@ function SecurityTab({ username, update }) {
 }
 
 export default function AdminPanel({ onClose, onSignOut }) {
-  const { config, update, save, reset } = useConfigAdmin()
+  const { config, update, replace, save, reset, saving } = useConfigAdmin()
   const [tab, setTab] = useState('brand')
   const [note, setNote] = useState('')
 
@@ -362,6 +362,68 @@ export default function AdminPanel({ onClose, onSignOut }) {
   async function handleSave() {
     const result = await save()
     flash(result.message)
+  }
+
+  function nextWith(path, value) {
+    const next = JSON.parse(JSON.stringify(config))
+    const keys = path.split('.')
+    let node = next
+    for (const key of keys.slice(0, -1)) node = node[key]
+    node[keys.at(-1)] = value
+    return next
+  }
+
+  async function publishUpload(path, url, label) {
+    const previous = config
+    const next = nextWith(path, url)
+    replace(next)
+    const result = await save(next)
+    if (!result.ok) {
+      replace(previous)
+      await api.deleteMedia(url).catch(() => {})
+      throw new Error(result.message)
+    }
+    flash(`${label} uploaded and published.`)
+  }
+
+  function addPhoto() {
+    update('media.images', [
+      ...(config.media.images ?? []),
+      { src: '', caption: '', alt: '' },
+    ])
+  }
+
+  function addVideo() {
+    update('media.videos', [
+      ...(config.media.videos ?? []),
+      { src: '', poster: '', caption: '' },
+    ])
+  }
+
+  async function deleteCard(type, index) {
+    const label = type === 'images' ? 'photo' : 'video'
+    if (!window.confirm(`Delete this ${label} card? This change will be published immediately.`)) {
+      return
+    }
+
+    const previous = config
+    const next = JSON.parse(JSON.stringify(config))
+    const [removed] = next.media[type].splice(index, 1)
+    replace(next)
+    const result = await save(next)
+    if (!result.ok) {
+      replace(previous)
+      flash(result.message)
+      return
+    }
+
+    const managedUrls = type === 'images'
+      ? [removed?.src]
+      : [removed?.src, removed?.poster]
+    await Promise.all(
+      managedUrls.filter(Boolean).map((url) => api.deleteMedia(url).catch(() => false)),
+    )
+    flash(`${label[0].toUpperCase()}${label.slice(1)} deleted and published.`)
   }
 
   function handleDownload() {
@@ -527,15 +589,28 @@ export default function AdminPanel({ onClose, onSignOut }) {
 
             {config.media.images.map((img, i) => (
               <div className="ap__pair" key={i}>
+                <div className="ap__cardHead">
+                  <strong>Photo {i + 1}</strong>
+                  <button
+                    className="ap__deleteBtn"
+                    type="button"
+                    onClick={() => deleteCard('images', i)}
+                    disabled={saving}
+                  >
+                    Delete
+                  </button>
+                </div>
                 <Text
-                  label={`Photo ${i + 1} — image URL`}
+                  label="Image URL"
                   value={img.src}
                   onChange={(v) => update(`media.images.${i}.src`, v)}
                   placeholder="https://…/space.jpg"
                 />
                 <Upload
                   accept="image/jpeg,image/png,image/webp"
-                  onUploaded={(url) => update(`media.images.${i}.src`, url)}
+                  onUploaded={(url) =>
+                    publishUpload(`media.images.${i}.src`, url, `Photo ${i + 1}`)
+                  }
                 />
                 <Text
                   label="Caption"
@@ -550,33 +625,58 @@ export default function AdminPanel({ onClose, onSignOut }) {
               </div>
             ))}
 
-            <div className="ap__pair">
-              <Text
-                label="Video URL (.mp4)"
-                value={config.media.video.src}
-                onChange={(v) => update('media.video.src', v)}
-                placeholder="https://…/tour.mp4"
-              />
-              <Upload
-                accept="video/mp4,video/webm"
-                onUploaded={(url) => update('media.video.src', url)}
-              />
-              <Text
-                label="Video poster image"
-                value={config.media.video.poster}
-                onChange={(v) => update('media.video.poster', v)}
-                hint="Shown before playback starts — keeps mobile data use down"
-              />
-              <Upload
-                accept="image/jpeg,image/png,image/webp"
-                onUploaded={(url) => update('media.video.poster', url)}
-              />
-              <Text
-                label="Video caption"
-                value={config.media.video.caption}
-                onChange={(v) => update('media.video.caption', v)}
-              />
-            </div>
+            <button className="btn btn--ghost ap__addBtn" type="button" onClick={addPhoto}>
+              + Add photo
+            </button>
+
+            {(config.media.videos ?? []).map((video, i) => (
+              <div className="ap__pair" key={i}>
+                <div className="ap__cardHead">
+                  <strong>Video {i + 1}</strong>
+                  <button
+                    className="ap__deleteBtn"
+                    type="button"
+                    onClick={() => deleteCard('videos', i)}
+                    disabled={saving}
+                  >
+                    Delete
+                  </button>
+                </div>
+                <Text
+                  label="Video URL (.mp4 or .webm)"
+                  value={video.src}
+                  onChange={(v) => update(`media.videos.${i}.src`, v)}
+                  placeholder="https://…/tour.mp4"
+                />
+                <Upload
+                  accept="video/mp4,video/webm"
+                  onUploaded={(url) =>
+                    publishUpload(`media.videos.${i}.src`, url, `Video ${i + 1}`)
+                  }
+                />
+                <Text
+                  label="Video poster image"
+                  value={video.poster}
+                  onChange={(v) => update(`media.videos.${i}.poster`, v)}
+                  hint="Shown before playback starts — keeps mobile data use down"
+                />
+                <Upload
+                  accept="image/jpeg,image/png,image/webp"
+                  onUploaded={(url) =>
+                    publishUpload(`media.videos.${i}.poster`, url, `Video ${i + 1} poster`)
+                  }
+                />
+                <Text
+                  label="Video caption"
+                  value={video.caption}
+                  onChange={(v) => update(`media.videos.${i}.caption`, v)}
+                />
+              </div>
+            ))}
+
+            <button className="btn btn--ghost ap__addBtn" type="button" onClick={addVideo}>
+              + Add video
+            </button>
           </>
         )}
       </div>
@@ -584,8 +684,8 @@ export default function AdminPanel({ onClose, onSignOut }) {
       <footer className="ap__foot">
         {note ? <p className="ap__flash">{note}</p> : null}
         {tab !== 'valet' ? <div className="ap__actions">
-          <button className="btn btn--primary" type="button" onClick={handleSave}>
-            {hasBackend ? 'Publish changes' : 'Save to this browser'}
+          <button className="btn btn--primary" type="button" onClick={handleSave} disabled={saving}>
+            {saving ? 'Publishing…' : hasBackend ? 'Publish changes' : 'Save to this browser'}
           </button>
           <button className="btn btn--ghost" type="button" onClick={handleDownload}>
             Download config
