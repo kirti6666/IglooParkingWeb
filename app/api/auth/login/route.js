@@ -15,7 +15,15 @@ export async function POST(request) {
   )
   if (limited) return limited
 
-  await seedAdmin()
+  try {
+    await seedAdmin()
+  } catch (error) {
+    console.error('Admin initialization failed:', error)
+    return jsonError(
+      'Admin storage could not be initialized. Check /api/health and the Vercel function logs.',
+      500,
+    )
+  }
   const body = await request.json().catch(() => ({}))
   const email = normaliseEmail(body.email)
   const password = String(body.password || '')
