@@ -36,6 +36,18 @@ async function request(path, { method = 'GET', body, form } = {}) {
     err.status = res.status
     throw err
   }
+
+  // A static host can rewrite an unknown /api URL to an empty 200 response.
+  // Treat that as a deployment error instead of letting callers crash while
+  // reading properties from null.
+  if (res.status !== 204 && data === null) {
+    const err = new Error(
+      'The API backend is unavailable. Deploy this site as a Render web service and try again.',
+    )
+    err.status = res.status
+    throw err
+  }
+
   return data
 }
 
@@ -69,6 +81,9 @@ export const api = {
     const form = new FormData()
     form.append('file', file)
     const data = await request('/api/media', { method: 'POST', form })
+    if (!data?.url) {
+      throw new Error('The upload server did not return a file URL. Please try again.')
+    }
     return { ...data, url: mediaUrl(data.url) }
   },
 }
