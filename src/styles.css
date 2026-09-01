@@ -3750,6 +3750,12 @@ body {
   .form__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .field:not(.field--full) .field__label {
+    display: flex;
+    align-items: flex-end;
+    height: 3.2em;
+  }
 }
 
 @media (max-width: 560px) {

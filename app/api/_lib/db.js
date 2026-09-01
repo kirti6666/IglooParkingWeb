@@ -1,8 +1,11 @@
 import crypto from 'node:crypto'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { get, list, put } from '@vercel/blob'
 import { defaultConfig } from '../../../src/config.js'
 
 const DATABASE_PREFIX = 'igloo-private/database/'
+const LOCAL_DATABASE_PATH = path.join(process.cwd(), '.data', 'igloo-db.json')
 const EMPTY = { config: null, users: [], resetTokens: [], valetLeads: [], hostRegistrations: [] }
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
@@ -27,6 +30,25 @@ function normalise(value) {
     delete db.config.admin
   }
   return db
+}
+
+function useLocalDatabase() {
+  return !process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN
+}
+
+async function readLocalDatabase() {
+  try {
+    const payload = await fs.readFile(LOCAL_DATABASE_PATH, 'utf8')
+    return normalise(JSON.parse(payload))
+  } catch (error) {
+    if (error?.code === 'ENOENT') return normalise(null)
+    throw error
+  }
+}
+
+async function writeLocalDatabase(next) {
+  await fs.mkdir(path.dirname(LOCAL_DATABASE_PATH), { recursive: true })
+  await fs.writeFile(LOCAL_DATABASE_PATH, JSON.stringify(next, null, 2), 'utf8')
 }
 
 function encrypt(value) {
@@ -68,6 +90,8 @@ async function latestSnapshot() {
 }
 
 export async function readDb() {
+  if (useLocalDatabase()) return readLocalDatabase()
+
   const snapshot = await latestSnapshot()
   if (!snapshot) return normalise(null)
 
@@ -78,6 +102,11 @@ export async function readDb() {
 }
 
 export async function writeDb(next) {
+  if (useLocalDatabase()) {
+    await writeLocalDatabase(next)
+    return
+  }
+
   const pathname = `${DATABASE_PREFIX}${Date.now()}-${crypto.randomUUID()}.enc`
   await put(pathname, encrypt(next), {
     access: 'public',
