@@ -10,7 +10,7 @@ import { WA_MESSAGES, waLink } from '../config'
 import { api } from '../api'
 import { useSite } from '../ConfigContext'
 
-const EMPTY = { name: '', email: '', phone: '', message: '', company: '' }
+const EMPTY = { name: '', email: '', phone: '', message: '', contactCheck: '' }
 
 export default function Contact() {
   const { contact } = useSite()
@@ -46,9 +46,6 @@ export default function Contact() {
 
   async function handleSubmit(event) {
     event.preventDefault()
-
-    // Honeypot: real people leave this hidden field empty.
-    if (values.company) return
 
     const problems = validate()
     if (problems.length) {
@@ -157,11 +154,11 @@ export default function Contact() {
             <input
               className="visually-hidden"
               type="text"
-              name="company"
+              name="contact_check"
               tabIndex={-1}
-              autoComplete="off"
-              value={values.company}
-              onChange={update('company')}
+              autoComplete="new-password"
+              value={values.contactCheck}
+              onChange={update('contactCheck')}
               aria-hidden="true"
             />
 

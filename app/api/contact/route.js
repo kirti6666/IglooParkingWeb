@@ -17,7 +17,7 @@ export async function POST(request) {
   if (limited) return limited
 
   const body = await request.json().catch(() => ({}))
-  if (clean(body.company)) return NextResponse.json({ ok: true }, { status: 201 })
+  if (clean(body.contactCheck)) return NextResponse.json({ ok: true }, { status: 201 })
 
   const enquiry = {
     name: clean(body.name),
