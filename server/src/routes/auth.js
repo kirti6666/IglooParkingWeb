@@ -48,12 +48,7 @@ function validatePassword(password) {
 
 /* ---------------- who am I ---------------- */
 
-router.get('/me', async (req, res) => {
-  const { currentUser } = await import('../auth.js')
-  const user = currentUser(req)
-  if (!user) return res.status(401).json({ error: 'Not signed in.' })
-  return res.json({ email: user.email })
-})
+router.get('/me', requireAuth, (req, res) => res.json({ email: req.user.email }))
 
 /* ---------------- sign in / out ---------------- */
 
@@ -132,7 +127,10 @@ router.post('/reset', async (req, res) => {
   const passwordHash = await hashPassword(password)
   await updateDb(async (next) => {
     const user = next.users.find((u) => u.id === record.userId)
-    if (user) user.passwordHash = passwordHash
+    if (user) {
+      user.passwordHash = passwordHash
+      user.sessionVersion = (user.sessionVersion ?? 0) + 1
+    }
     // single use
     next.resetTokens = next.resetTokens.filter((t) => t.tokenHash !== tokenHash)
   })
@@ -156,10 +154,13 @@ router.post('/change-password', requireAuth, async (req, res) => {
   }
 
   const passwordHash = await hashPassword(newPassword)
-  await updateDb(async (next) => {
+  const next = await updateDb(async (next) => {
     const target = next.users.find((u) => u.id === user.id)
     target.passwordHash = passwordHash
+    target.sessionVersion = (target.sessionVersion ?? 0) + 1
   })
+
+  issueSession(res, next.users.find((candidate) => candidate.id === user.id))
 
   return res.json({ ok: true })
 })
@@ -181,11 +182,13 @@ router.post('/change-email', requireAuth, async (req, res) => {
     return res.status(409).json({ error: 'Another account already uses that email.' })
   }
 
-  await updateDb(async (next) => {
-    next.users.find((u) => u.id === user.id).email = email
+  const next = await updateDb(async (next) => {
+    const target = next.users.find((u) => u.id === user.id)
+    target.email = email
+    target.sessionVersion = (target.sessionVersion ?? 0) + 1
   })
 
-  issueSession(res, { id: user.id, email })
+  issueSession(res, next.users.find((candidate) => candidate.id === user.id))
   return res.json({ email })
 })
 
@@ -205,8 +208,42 @@ export async function seedAdmin({ force = false } = {}) {
   const db = await readDb()
   const email = normalise(process.env.ADMIN_EMAIL)
   const password = process.env.ADMIN_PASSWORD
+  const credentialsVersion = String(process.env.ADMIN_CREDENTIALS_VERSION || '').trim()
 
   if (db.users.length > 0 && !force) {
+    const existingUser = db.users[0]
+
+    // A version bump deliberately rotates the persisted production credentials
+    // once. Keeping the applied version in the database prevents later restarts
+    // from undoing password/email changes made through the admin panel.
+    if (credentialsVersion && existingUser.credentialsVersion !== credentialsVersion) {
+      if (!email || !password) {
+        console.warn(
+          '⚠  ADMIN_CREDENTIALS_VERSION changed, but ADMIN_EMAIL or ADMIN_PASSWORD is missing.',
+        )
+        console.warn('   Existing admin credentials were left unchanged.')
+        return
+      }
+
+      const passwordError = validatePassword(password)
+      if (passwordError) {
+        console.warn(`⚠  Admin credentials were not rotated: ${passwordError}`)
+        return
+      }
+
+      const passwordHash = await hashPassword(password)
+      await updateDb(async (next) => {
+        const target = next.users[0]
+        target.email = email
+        target.passwordHash = passwordHash
+        target.sessionVersion = (target.sessionVersion ?? 0) + 1
+        target.credentialsVersion = credentialsVersion
+        next.resetTokens = []
+      })
+      console.log(`✓ Admin credentials rotated for ${email}`)
+      return
+    }
+
     const existing = db.users.map((u) => u.email).join(', ')
     console.log(`✓ Admin account: ${existing}`)
 
@@ -244,6 +281,8 @@ export async function seedAdmin({ force = false } = {}) {
       id: crypto.randomUUID(),
       email,
       passwordHash,
+      sessionVersion: 0,
+      credentialsVersion: credentialsVersion || undefined,
       createdAt: new Date().toISOString(),
     })
     if (force) next.resetTokens = []

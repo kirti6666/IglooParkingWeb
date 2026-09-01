@@ -112,7 +112,11 @@ The Blueprint provides:
 - a `/api/health` deployment health check
 - a generated `JWT_SECRET`
 - a 1 GB persistent disk for the JSON database and admin media uploads
-- first-deploy prompts for `ADMIN_EMAIL` and `ADMIN_PASSWORD`
+- the production admin email `support@iglooparking.com`
+- first-deploy prompts for the secret `ADMIN_PASSWORD` and an
+  `ADMIN_CREDENTIALS_VERSION` rotation label
+- versioned admin credential rotation so a deliberate version bump updates the
+  persisted account exactly once without overriding later admin-panel changes
 
 In Render, create or sync a Blueprint for this repository once. Persistent disks
 require a paid web-service plan. After that one-time setup, normal Git pushes are
@@ -283,7 +287,7 @@ to-dos before launch.
 
 **Must do before going live**
 
-1. Sync `render.yaml` as a Render Blueprint and provide `ADMIN_EMAIL` and `ADMIN_PASSWORD` when prompted.
+1. Sync `render.yaml` as a Render Blueprint and provide `ADMIN_PASSWORD` and an `ADMIN_CREDENTIALS_VERSION` label when prompted. The admin email is fixed to `support@iglooparking.com`. For an existing service, update the password and change the version label together to rotate the persisted account once.
 2. Configure `SMTP_*` in Render if password-reset emails are required. Without SMTP, reset links print to the service log.
 3. Use the Render HTTPS URL or attach your custom domain.
 4. Swap in Apple's official App Store badge — theirs is required by their guidelines. Download from [Apple's marketing resources](https://developer.apple.com/app-store/marketing/guidelines/) and replace the markup in `src/components/AppStoreBadge.jsx`.

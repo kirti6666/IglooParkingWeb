@@ -25,8 +25,10 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_EMAIL
-        sync: false
+        value: support@iglooparking.com
       - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_CREDENTIALS_VERSION
         sync: false
       - key: MAIL_FROM
         value: Igloo Parking <support@iglooparking.com>

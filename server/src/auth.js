@@ -8,6 +8,7 @@
 import bcrypt from 'bcryptjs'
 import crypto from 'node:crypto'
 import jwt from 'jsonwebtoken'
+import { readDb } from './db.js'
 
 const COOKIE = 'igloo_session'
 const BCRYPT_ROUNDS = 12
@@ -40,9 +41,13 @@ export const hashToken = (token) =>
   crypto.createHash('sha256').update(String(token)).digest('hex')
 
 export function issueSession(res, user) {
-  const token = jwt.sign({ sub: user.id, email: user.email }, secret(), {
-    expiresIn: `${SESSION_HOURS}h`,
-  })
+  const token = jwt.sign(
+    { sub: user.id, email: user.email, ver: user.sessionVersion ?? 0 },
+    secret(),
+    {
+      expiresIn: `${SESSION_HOURS}h`,
+    },
+  )
   res.cookie(COOKIE, token, {
     ...cookieOptions(),
     maxAge: SESSION_HOURS * 3600 * 1000,
@@ -63,11 +68,28 @@ export function currentUser(req) {
   }
 }
 
-export function requireAuth(req, res, next) {
-  const user = currentUser(req)
-  if (!user) return res.status(401).json({ error: 'Not signed in.' })
-  req.user = user
-  return next()
+export async function requireAuth(req, res, next) {
+  try {
+    const session = currentUser(req)
+    if (!session) return res.status(401).json({ error: 'Not signed in.' })
+
+    const db = await readDb()
+    const user = db.users.find((candidate) => candidate.id === session.sub)
+    const currentVersion = user?.sessionVersion ?? 0
+    if (
+      !user ||
+      user.email !== session.email ||
+      currentVersion !== (session.ver ?? 0)
+    ) {
+      clearSession(res)
+      return res.status(401).json({ error: 'Your session is no longer valid. Sign in again.' })
+    }
+
+    req.user = { sub: user.id, email: user.email }
+    return next()
+  } catch (err) {
+    return next(err)
+  }
 }
 
 /** Resolve the public request origin without trusting an arbitrary Origin
