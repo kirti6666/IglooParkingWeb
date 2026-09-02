@@ -25,6 +25,12 @@ function getTransport() {
       ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
       : undefined,
     tls: { minVersion: 'TLSv1.2' },
+    // Without these, a blocked outbound SMTP port leaves the request hanging
+    // until the platform kills the function, so the visitor waits and then
+    // gets a gateway timeout instead of an error the code can report.
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
   })
   return transport
 }
