@@ -28,9 +28,9 @@ function getTransport() {
     // Without these, a blocked outbound SMTP port leaves the request hanging
     // until the platform kills the function, so the visitor waits and then
     // gets a gateway timeout instead of an error the code can report.
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 20000,
+    connectionTimeout: 6000,
+    greetingTimeout: 6000,
+    socketTimeout: 12000,
   })
   return transport
 }
@@ -54,6 +54,28 @@ export async function sendResetEmail(to, resetUrl) {
       "If this wasn't you, ignore this email — nothing has changed.",
     ].join('\n'),
   })
+}
+
+/** Opens a connection and authenticates without sending anything, so a
+ *  misconfiguration can be identified without waiting for a visitor to submit
+ *  a form and without the error disappearing into the server log. */
+export async function verifyMailer() {
+  const mailer = getTransport()
+  if (!mailer) {
+    return { ok: false, reason: 'SMTP_USER or SMTP_PASS is not set in this environment.' }
+  }
+  try {
+    await mailer.verify()
+    return { ok: true }
+  } catch (error) {
+    return {
+      ok: false,
+      reason: String(error.message || error).split('\n')[0],
+      code: error.code || null,
+      command: error.command || null,
+      responseCode: error.responseCode || null,
+    }
+  }
 }
 
 export function enquiryMailerReady() {
