@@ -11,7 +11,6 @@ const EMPTY = {
   location: '',
   mobile: '',
   email: '',
-  otpRequired: true,
   website: '',
 }
 
@@ -207,26 +206,6 @@ export default function HostRegistration() {
               placeholder="Locality or landmark"
               icon={<MapPinIcon size={20} />}
             />
-          </div>
-
-          <div className="host-register__toggle">
-            <label className="switch" htmlFor="host-otp">
-              <span className="switch__label">
-                OTP authentication required for booking confirmation?
-              </span>
-              <input
-                id="host-otp"
-                className="switch__input"
-                type="checkbox"
-                checked={values.otpRequired}
-                onChange={(event) =>
-                  setValues((prev) => ({ ...prev, otpRequired: event.target.checked }))
-                }
-              />
-              <span className="switch__track" aria-hidden="true">
-                <span className="switch__thumb" />
-              </span>
-            </label>
           </div>
 
           <input

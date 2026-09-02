@@ -185,7 +185,6 @@ function HostRegistrationsTab() {
           <dl>
             <div><dt>Mobile</dt><dd><a href={`tel:${host.mobile}`}>{host.mobile}</a></dd></div>
             <div><dt>Email</dt><dd><a href={`mailto:${host.email}`}>{host.email}</a></dd></div>
-            <div><dt>OTP for booking</dt><dd>{host.otpRequired ? 'Required' : 'Not required'}</dd></div>
             <div className="ap__leadWide">
               <dt>Parking address</dt>
               <dd>

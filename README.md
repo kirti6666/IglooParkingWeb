@@ -118,8 +118,8 @@ Redeploy after adding or changing environment variables.
 ## Host registration
 
 The **Register your parking space** section is a live form — name, mobile
-number, email, building name (optional), street name, pincode, parking place
-location, and whether OTP authentication is required to confirm a booking.
+number, email, building name (optional), street name, pincode, and parking
+place location.
 
 Submissions are validated on both sides, rate limited to 10 an hour per IP,
 and stored in the encrypted database. Read them back in the admin panel's

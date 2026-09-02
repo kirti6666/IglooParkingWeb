@@ -113,7 +113,6 @@ export async function sendHostRegistrationEmail(registration) {
       `Street: ${registration.street}`,
       `Pincode: ${registration.pincode}`,
       `Parking location: ${registration.location}`,
-      `OTP authentication required: ${registration.otpRequired ? 'Yes' : 'No'}`,
       `Submitted at: ${registration.submittedAt}`,
     ],
   })

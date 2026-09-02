@@ -51,7 +51,6 @@ export async function POST(request) {
   const record = {
     id: crypto.randomUUID(),
     ...registration,
-    otpRequired: body.otpRequired !== false,
     submittedAt: new Date().toISOString(),
   }
   try {
