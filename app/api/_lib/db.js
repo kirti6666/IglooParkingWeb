@@ -1,9 +1,12 @@
 import crypto from 'node:crypto'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { get, list, put } from '@vercel/blob'
 import { defaultConfig } from '../../../src/config.js'
 
 const DATABASE_PREFIX = 'igloo-private/database/'
-const EMPTY = { config: null, users: [], resetTokens: [], valetLeads: [] }
+const LOCAL_DATABASE_PATH = path.join(process.cwd(), '.data', 'igloo-db.json')
+const EMPTY = { config: null, users: [], resetTokens: [], valetLeads: [], hostRegistrations: [] }
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
 let writing = Promise.resolve()
@@ -21,11 +24,31 @@ function normalise(value) {
   db.users ??= []
   db.resetTokens ??= []
   db.valetLeads ??= []
+  db.hostRegistrations ??= []
   if (!db.config) {
     db.config = clone(defaultConfig)
     delete db.config.admin
   }
   return db
+}
+
+function useLocalDatabase() {
+  return !process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN
+}
+
+async function readLocalDatabase() {
+  try {
+    const payload = await fs.readFile(LOCAL_DATABASE_PATH, 'utf8')
+    return normalise(JSON.parse(payload))
+  } catch (error) {
+    if (error?.code === 'ENOENT') return normalise(null)
+    throw error
+  }
+}
+
+async function writeLocalDatabase(next) {
+  await fs.mkdir(path.dirname(LOCAL_DATABASE_PATH), { recursive: true })
+  await fs.writeFile(LOCAL_DATABASE_PATH, JSON.stringify(next, null, 2), 'utf8')
 }
 
 function encrypt(value) {
@@ -67,6 +90,8 @@ async function latestSnapshot() {
 }
 
 export async function readDb() {
+  if (useLocalDatabase()) return readLocalDatabase()
+
   const snapshot = await latestSnapshot()
   if (!snapshot) return normalise(null)
 
@@ -77,6 +102,11 @@ export async function readDb() {
 }
 
 export async function writeDb(next) {
+  if (useLocalDatabase()) {
+    await writeLocalDatabase(next)
+    return
+  }
+
   const pathname = `${DATABASE_PREFIX}${Date.now()}-${crypto.randomUUID()}.enc`
   await put(pathname, encrypt(next), {
     access: 'public',
@@ -87,13 +117,19 @@ export async function writeDb(next) {
 }
 
 export async function updateDb(mutator) {
-  let result
-  writing = writing.then(async () => {
+  const run = writing.then(async () => {
     const next = clone(await readDb())
     await mutator(next)
     await writeDb(next)
-    result = next
+    return next
   })
-  await writing
-  return result
+  // The queue exists to serialise writes, not to spread one caller's failure.
+  // Chaining `run` itself would hand its rejection to every later write, so a
+  // single blob hiccup would keep failing until the instance was recycled —
+  // the mutator would never even run. Wait on settlement instead.
+  writing = run.then(
+    () => {},
+    () => {},
+  )
+  return run
 }

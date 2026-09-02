@@ -9,6 +9,10 @@ const BASE = ''
 
 export const hasBackend = true
 
+/** Hard ceiling enforced by the media route; mirrored here so the browser can
+ *  reject an oversized file before uploading it. */
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+
 /** Keep managed upload paths portable in saved configuration. Older local
  *  configs may contain an absolute localhost URL, so migrate those too. */
 export function portableMediaUrl(url) {
@@ -50,7 +54,13 @@ async function request(path, { method = 'GET', body, form } = {}) {
   }
 
   if (!res.ok) {
-    const err = new Error(data?.error || `Request failed (${res.status})`)
+    // A body too large for the hosting platform is rejected before the route
+    // handler runs, so there is no JSON error to read — only a bare 413.
+    const fallback =
+      res.status === 413
+        ? 'That file is too large for the upload server. Compress it or pick a smaller one.'
+        : `Request failed (${res.status})`
+    const err = new Error(data?.error || fallback)
     err.status = res.status
     throw err
   }
@@ -95,7 +105,19 @@ export const api = {
     request('/api/valet', { method: 'POST', body: details }),
   getValetLeads: () => request('/api/valet'),
 
+  submitHostRegistration: (details) =>
+    request('/api/host', { method: 'POST', body: details }),
+  getHostRegistrations: () => request('/api/host'),
+
+  submitContact: (details) =>
+    request('/api/contact', { method: 'POST', body: details }),
+
   async upload(file) {
+    // Fail fast instead of spending a slow mobile upload on a file the server
+    // is going to refuse. Keep in step with MAX_BYTES in app/api/media/route.js.
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new Error('That file is larger than 25 MB. Compress it or pick a smaller one.')
+    }
     const form = new FormData()
     form.append('file', file)
     const data = await request('/api/media', { method: 'POST', form })

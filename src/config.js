@@ -47,9 +47,6 @@ export const defaultConfig = {
   links: {
     appStore: 'https://apps.apple.com/in/app/igloo-parking/id6759717457',
     playStore: 'https://play.google.com/store/apps/details?id=com.igloo.iglooparking',
-    // Optional: a form endpoint (Formspree / FormSubmit / Web3Forms).
-    // Empty means the contact form falls back to the visitor's mail app.
-    formEndpoint: '',
   },
 
   /* Photos and video of real parking spaces.

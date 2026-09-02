@@ -17,6 +17,18 @@ const ALLOWED = {
 }
 const MAX_BYTES = 25 * 1024 * 1024
 
+/** Browsers don't agree on the type they report for a picked file. Android
+ *  pickers and older WebViews often send `application/octet-stream` or nothing
+ *  at all, and Windows still produces these legacy aliases — none of which
+ *  means the file is bad. */
+const MIME_ALIASES = {
+  'image/jpg': 'image/jpeg',
+  'image/pjpeg': 'image/jpeg',
+  'image/x-png': 'image/png',
+  'application/octet-stream': '',
+  'binary/octet-stream': '',
+}
+
 function validMagic(buffer, ext) {
   const head = buffer.subarray(0, 16)
   const hex = head.toString('hex')
@@ -41,8 +53,16 @@ export async function POST(request) {
   if (file.size > MAX_BYTES) return jsonError('That file is larger than 25 MB.')
 
   const ext = path.extname(file.name).toLowerCase()
-  if (!ALLOWED[ext]) return jsonError('Only JPG, PNG, WebP, MP4 and WebM files are allowed.')
-  if (file.type !== ALLOWED[ext]) return jsonError("That file's type doesn't match its extension.")
+  const contentType = ALLOWED[ext]
+  if (!contentType) return jsonError('Only JPG, PNG, WebP, MP4 and WebM files are allowed.')
+
+  // Reject a declared type that contradicts the extension, but let a missing
+  // or generic one through — the magic-number check below is what actually
+  // decides, and the stored type comes from the extension either way.
+  const declared = MIME_ALIASES[file.type?.toLowerCase()] ?? file.type?.toLowerCase() ?? ''
+  if (declared && declared !== contentType) {
+    return jsonError("That file's type doesn't match its extension.")
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer())
   if (!validMagic(buffer, ext)) return jsonError("That file isn't a valid image or video.")
@@ -51,7 +71,7 @@ export async function POST(request) {
   const blob = await put(`igloo-media/${filename}`, buffer, {
     access: 'public',
     addRandomSuffix: false,
-    contentType: file.type,
+    contentType,
   })
   return NextResponse.json(
     { url: blob.url, filename, bytes: file.size },

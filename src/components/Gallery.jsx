@@ -13,6 +13,16 @@ import { mediaUrl } from '../api'
  * someone presses play — a poster image covers the wait.
  */
 
+/** Tags each card with the slot it occupies in the config, so a card keeps its
+ *  React identity when an administrator swaps the file behind it. Keying by
+ *  URL instead would remount the card on every upload, restarting the scroll
+ *  reveal from `opacity: 0`. */
+function withSlots(cards) {
+  return cards
+    .map((card, slot) => ({ ...card, slot }))
+    .filter((card) => card.src?.trim())
+}
+
 export default function Gallery() {
   const { media } = useSite()
   const images = media.images ?? []
@@ -21,8 +31,8 @@ export default function Gallery() {
     : media.video
       ? [media.video]
       : []
-  const visibleImages = images.filter((image) => image?.src?.trim())
-  const visibleVideos = videos.filter((video) => video?.src?.trim())
+  const visibleImages = withSlots(images)
+  const visibleVideos = withSlots(videos)
 
   if (!visibleImages.length && !visibleVideos.length) return null
 
@@ -37,8 +47,8 @@ export default function Gallery() {
 
         {visibleImages.length ? (
           <div className="gallery__grid" data-count={visibleImages.length}>
-            {visibleImages.map((img, i) => (
-              <figure className="shot reveal" key={`${img.src}-${i}`}>
+            {visibleImages.map((img) => (
+              <figure className="shot reveal" key={img.slot}>
                 <div className="shot__frame">
                   <img
                     className="shot__img"
@@ -57,8 +67,8 @@ export default function Gallery() {
           </div>
         ) : null}
 
-        {visibleVideos.map((video, i) => (
-          <figure className="clip reveal" key={`${video.src}-${i}`}>
+        {visibleVideos.map((video) => (
+          <figure className="clip reveal" key={video.slot}>
             <div className="clip__frame">
               <video
                 className="clip__video"

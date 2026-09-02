@@ -6,6 +6,19 @@ export function jsonError(message, status = 400) {
   return NextResponse.json({ error: message }, { status })
 }
 
+/** A blob or encryption failure is a deployment problem, not bad input, and
+ *  it otherwise escapes the handler as a bare 500 with no body at all. The
+ *  cause goes to the server log (Vercel → the function's logs); the visitor
+ *  gets something readable that gives nothing about the deployment away.
+ *  `/api/health` reports whether the blob store and JWT_SECRET are set. */
+export function storageUnavailable(error, action = 'save that') {
+  console.error('[igloo] storage unavailable:', error)
+  return jsonError(
+    `Sorry — we couldn't ${action} just now. Please try again in a moment.`,
+    503,
+  )
+}
+
 export function requestOrigin(request) {
   const protocol = (request.headers.get('x-forwarded-proto') || new URL(request.url).protocol)
     .split(',')[0]
