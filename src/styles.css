@@ -1806,6 +1806,13 @@ section[id] {
   letter-spacing: 0.02em;
 }
 
+/* Google's badge sets the lead-in line in caps; Apple's does not. */
+.badge-store__small--caps {
+  text-transform: uppercase;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+}
+
 .badge-store__big {
   display: block;
   font-size: 19px;
@@ -3185,6 +3192,7 @@ section[id] {
 }
 
 .ap__leadTitle h3 {
+  flex: 1;
   font-family: var(--display);
   font-size: 1rem;
 }

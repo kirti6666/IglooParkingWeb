@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 
+/** Per-instance rate-limit buckets.
+ *
+ *  Serverless instances don't share memory, so this bounds abuse from a single
+ *  instance rather than globally — a determined attacker spread across many
+ *  cold starts gets proportionally more attempts. It is a speed bump in front
+ *  of bcrypt, not a substitute for a shared store; see the README. */
 const buckets = new Map()
+const MAX_BUCKETS = 5000
 
 export function jsonError(message, status = 400) {
   return NextResponse.json({ error: message }, { status })
@@ -45,13 +52,34 @@ export function guardMutation(request) {
     : jsonError('Cross-origin request refused.', 403)
 }
 
-export function rateLimit(request, key, limit, windowMs, message) {
-  const ip =
+export function clientIp(request) {
+  return (
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     request.headers.get('x-real-ip') ||
     'local'
-  const id = `${key}:${ip}`
+  )
+}
+
+/** Drops buckets whose window has already closed. Without this the map grows
+ *  once per distinct IP for the life of the instance. */
+function sweep(now) {
+  for (const [id, bucket] of buckets) {
+    if (bucket.resetAt <= now) buckets.delete(id)
+  }
+}
+
+/** Rate limit against an arbitrary identity — an account email, say, rather
+ *  than an IP. Kept deliberately generous where the identity is attacker-chosen,
+ *  since a tight budget there lets anyone lock a real admin out. */
+export function rateLimitBy(identity, key, limit, windowMs, message) {
   const now = Date.now()
+  if (buckets.size >= MAX_BUCKETS) sweep(now)
+  // Still full of live windows: refuse rather than grow without bound.
+  if (buckets.size >= MAX_BUCKETS) {
+    return jsonError('The server is busy. Please try again in a moment.', 429)
+  }
+
+  const id = `${key}:${identity}`
   const current = buckets.get(id)
   const bucket = !current || current.resetAt <= now
     ? { count: 0, resetAt: now + windowMs }
@@ -64,4 +92,38 @@ export function rateLimit(request, key, limit, windowMs, message) {
   const response = jsonError(message, 429)
   response.headers.set('Retry-After', String(Math.ceil((bucket.resetAt - now) / 1000)))
   return response
+}
+
+export function rateLimit(request, key, limit, windowMs, message) {
+  return rateLimitBy(clientIp(request), key, limit, windowMs, message)
+}
+
+/** Reads a JSON body with a hard size ceiling.
+ *
+ *  `request.json()` will happily buffer whatever it is sent, so an authenticated
+ *  session could push an arbitrarily large document into memory (and, for the
+ *  config endpoint, into storage). Returns `{ data }` or `{ error }` — never
+ *  throws. */
+export async function readJson(request, maxBytes = 64 * 1024) {
+  const declared = Number(request.headers.get('content-length') || 0)
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    return { error: jsonError('That request body is too large.', 413) }
+  }
+
+  let text
+  try {
+    text = await request.text()
+  } catch {
+    return { error: jsonError('Could not read the request body.') }
+  }
+  // content-length is a claim; the body is the fact.
+  if (Buffer.byteLength(text, 'utf8') > maxBytes) {
+    return { error: jsonError('That request body is too large.', 413) }
+  }
+
+  try {
+    return { data: text ? JSON.parse(text) : {} }
+  } catch {
+    return { error: jsonError('Expected a JSON body.') }
+  }
 }

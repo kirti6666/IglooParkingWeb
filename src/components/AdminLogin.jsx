@@ -1,24 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSite } from '../ConfigContext'
-import { api, hasBackend } from '../api'
-import { startSession, verifyCredentials } from '../auth'
+import { api } from '../api'
 
 /**
  * Admin sign-in.
  *
- * The native Next.js API provides real authentication:
- * the server checks a bcrypt hash and issues an httpOnly session cookie, and
- * password reset by email works.
- *
- * Without a backend it falls back to a browser-only check, which is a
- * deterrent rather than security — the panel says so plainly.
+ * Authentication is entirely server-side: /api/auth/login compares a bcrypt
+ * hash and issues an httpOnly session cookie, and password reset runs by
+ * email. The attempt counter below is a courtesy to the person typing — the
+ * limit that matters is enforced by the API.
  */
 
 const MAX_ATTEMPTS = 5
 const LOCK_SECONDS = 60
 
 export default function AdminLogin({ onSuccess, onClose }) {
-  const { admin } = useSite()
   const [mode, setMode] = useState(() =>
     window.location.hash.startsWith('#admin-reset=') ? 'reset' : 'signin',
   )
@@ -70,18 +65,9 @@ export default function AdminLogin({ onSuccess, onClose }) {
 
     setBusy(true)
     try {
-      if (hasBackend) {
-        await api.login(email.trim(), password)
-        onSuccess()
-        return
-      }
-      const ok = await verifyCredentials(email, password, admin)
-      if (ok) {
-        startSession()
-        onSuccess()
-        return
-      }
-      throw new Error('Incorrect email or password.')
+      await api.login(email.trim(), password)
+      onSuccess()
+      return
     } catch (err) {
       const next = attempts + 1
       setAttempts(next)
@@ -216,23 +202,16 @@ export default function AdminLogin({ onSuccess, onClose }) {
             {busy ? 'Checking…' : 'Sign in'}
           </button>
 
-          {hasBackend ? (
-            <button
-              className="ap__linkBtn"
-              type="button"
-              onClick={() => {
-                setMode('forgot')
-                clearMessages()
-              }}
-            >
-              Forgot your password?
-            </button>
-          ) : (
-            <p className="ap__note ap__note--warn">
-              <strong>The API is unavailable.</strong> Reload the page after checking
-              the Next.js server and environment configuration.
-            </p>
-          )}
+          <button
+            className="ap__linkBtn"
+            type="button"
+            onClick={() => {
+              setMode('forgot')
+              clearMessages()
+            }}
+          >
+            Forgot your password?
+          </button>
         </form>
       )}
 

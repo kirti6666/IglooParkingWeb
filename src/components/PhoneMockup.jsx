@@ -63,14 +63,6 @@ function HostRegistrationScreen() {
             <span>
               {label} {required ? <span className="scr__req">*</span> : null}
             </span>
-            {label === 'Parking place location' ? (
-              <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  fill="#6b7a83"
-                  d="M12 22s7-5.9 7-11.4A7 7 0 1 0 5 10.6C5 16.1 12 22 12 22Zm0-8.8a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Z"
-                />
-              </svg>
-            ) : null}
           </div>
         ))}
         <div className="scr__toggle-row">

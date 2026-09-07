@@ -3,8 +3,12 @@
  * IGLOO PARKING — default site configuration.
  *
  * This object is the shipped default. The admin panel (open the site
- * with #admin in the URL) edits a copy of it live, saves it to the
- * browser, publishes it through the Next.js API, and can export it as JSON.
+ * with #admin in the URL) edits a copy of it live, publishes it through
+ * the Next.js API, and can export it as JSON.
+ *
+ * It ships inside the browser bundle, so it holds no credentials of any
+ * kind. Admin sign-in is verified server-side against a bcrypt hash in
+ * the encrypted database — see app/api/auth.
  * ---------------------------------------------------------------
  */
 
@@ -24,16 +28,6 @@ export const defaultConfig = {
     gradientTo: '#3fbfc4', // hero + footer gradient end
     host: '#b14a12', // the warm host-side accent
     ink: '#0a2230', // headings and body text
-  },
-
-  /* Admin sign-in. The password is stored only as a salted SHA-256 hash.
-     Defaults are  admin / IglooAdmin@2026  — CHANGE THESE before go-live.
-     Use the Security tab in the admin panel to generate a new hash, then
-     paste it here and redeploy. */
-  admin: {
-    username: 'admin',
-    passwordHash:
-      '0ff72a3f19e1037126f4c4fd52a9384052aca50d639027434c110870001b87a9',
   },
 
   contact: {
