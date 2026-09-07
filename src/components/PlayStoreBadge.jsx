@@ -1,5 +1,11 @@
-import { PlayStoreIcon } from './Icons'
+import { GooglePlayIcon } from './Icons'
 
+/**
+ * Google Play badge — Google's black badge lockup with the official
+ * four-colour Play mark (see GooglePlayIcon). Google's brand guidelines
+ * forbid recolouring the mark, so it keeps its own colours against the
+ * black pill rather than inheriting `currentColor` like our other icons.
+ */
 export default function PlayStoreBadge({ href, label = 'Get it on Google Play', large = false }) {
   return (
     <a
@@ -9,9 +15,9 @@ export default function PlayStoreBadge({ href, label = 'Get it on Google Play', 
       rel="noopener noreferrer"
       aria-label={label}
     >
-      <PlayStoreIcon size={large ? 32 : 28} />
+      <GooglePlayIcon size={large ? 32 : 28} />
       <span className="badge-store__text">
-        <span className="badge-store__small">Get it on</span>
+        <span className="badge-store__small badge-store__small--caps">Get it on</span>
         <span className="badge-store__big">Google Play</span>
       </span>
     </a>

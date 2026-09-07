@@ -3,7 +3,7 @@ import path from 'node:path'
 import { put } from '@vercel/blob'
 import { NextResponse } from 'next/server'
 import { requireUser } from '../_lib/auth'
-import { guardMutation, jsonError } from '../_lib/http'
+import { guardMutation, jsonError, rateLimit } from '../_lib/http'
 
 export const runtime = 'nodejs'
 
@@ -35,12 +35,31 @@ export async function POST(request) {
   const { response } = await requireUser(request)
   if (response) return response
 
+  const limited = rateLimit(
+    request,
+    'media-upload',
+    40,
+    60 * 60 * 1000,
+    'Too many uploads in a row. Try again shortly.',
+  )
+  if (limited) return limited
+
+  // Reject on the declared size before `formData()` buffers the whole body
+  // into memory. The real size is still checked below — this only saves the
+  // function from parsing something it was always going to refuse.
+  const declared = Number(request.headers.get('content-length') || 0)
+  if (Number.isFinite(declared) && declared > MAX_BYTES * 1.1) {
+    return jsonError('That file is larger than 25 MB.', 413)
+  }
+
   const form = await request.formData().catch(() => null)
   const file = form?.get('file')
   if (!(file instanceof File)) return jsonError('No file received.')
-  if (file.size > MAX_BYTES) return jsonError('That file is larger than 25 MB.')
+  if (file.size > MAX_BYTES) return jsonError('That file is larger than 25 MB.', 413)
 
-  const ext = path.extname(file.name).toLowerCase()
+  // `file.name` is caller-supplied: take only the extension from it, and build
+  // the stored name ourselves so nothing from the client reaches the path.
+  const ext = path.extname(path.basename(file.name || '')).toLowerCase()
   if (!ALLOWED[ext]) return jsonError('Only JPG, PNG, WebP, MP4 and WebM files are allowed.')
   if (file.type !== ALLOWED[ext]) return jsonError("That file's type doesn't match its extension.")
 
@@ -51,7 +70,9 @@ export async function POST(request) {
   const blob = await put(`igloo-media/${filename}`, buffer, {
     access: 'public',
     addRandomSuffix: false,
-    contentType: file.type,
+    // Pin the type to our own allow-list value rather than echoing the
+    // client's, so the stored object can never be served as something else.
+    contentType: ALLOWED[ext],
   })
   return NextResponse.json(
     { url: blob.url, filename, bytes: file.size },

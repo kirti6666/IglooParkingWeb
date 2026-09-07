@@ -38,9 +38,16 @@ Change your email or password any time from the **Security** tab — both ask fo
 your current password first.
 
 Six tabs: Brand, Contact, Links, Photos & video, Valet enquiries, and Security.
-Edits apply
-to the page instantly as you type; **Publish changes** makes them live for
-everyone. Five wrong sign-in attempts locks the form for 60 seconds.
+Edits apply to the page instantly as you type; **Publish changes** makes them
+live for everyone. Five wrong sign-in attempts locks the form for 60 seconds
+(the limit that actually matters is enforced by the API — see Security below).
+
+The API re-validates what it is sent, so a value it rejects — an unsafe link,
+a malformed colour — falls back rather than publishing. The panel refreshes
+from the server's copy after each publish, so what you see is what is live.
+
+The **Valet enquiries** tab lists submissions newest first and can delete
+individual ones; enquiries are personal data, so remove them once handled.
 
 ## Native Next.js API
 
@@ -93,15 +100,52 @@ Redeploy after adding or changing environment variables.
 ### What protects it
 
 - **bcrypt** at cost 12; passwords are never stored or logged in plaintext
+- **No credentials in the browser bundle.** Sign-in is verified only by the API.
+  `src/config.js` ships to every visitor, so it carries no admin block at all
 - **httpOnly session cookie**, using `sameSite=lax` and `secure` in production,
   so page JavaScript — and any XSS — can't read the token
 - **Origin checking** on every mutating request, a second lock against CSRF
-- **Rate limits**: 10 sign-ins per 15 min, 5 reset requests per hour, 120 API calls per minute
+- **Rate limits**: 10 sign-ins per 15 min per IP (plus 30 per account, so a
+  rotating IP pool can't grind one address down), 5 reset requests per hour,
+  10 reset redemptions per hour, 10 credential changes per 15 min, 10 valet
+  enquiries per hour, 40 uploads per hour
 - **Reset tokens** are random, stored only as a hash, single-use, 30-minute expiry
-- **Identical replies** whether or not an email has an account, so the endpoint can't be used to discover addresses
-- **Uploads** are checked three ways — extension, declared MIME type, and a magic-number sniff of the actual bytes. Filenames are generated, never taken from the client, so a crafted name can't escape the directory. 25 MB cap
-- **Credential changes** require the current password, so an unattended session can't be used to lock you out
+- **Identical replies and identical timing** whether or not an email has an
+  account. An unknown address is still checked against a real bcrypt hash, so
+  the response time can't be used to discover addresses either
+- **Published settings are re-validated server-side** (`app/api/_lib/config-schema.js`)
+  rather than stored as posted: unknown keys dropped, strings capped, colours
+  checked, and every value that lands in an `href` or `src` restricted to
+  http(s) or same-site — so a `javascript:` URL can't be saved and served to
+  visitors
+- **Request bodies are size-capped** before they are parsed
+- **Uploads** are checked three ways — extension, declared MIME type, and a
+  magic-number sniff of the actual bytes. Filenames are generated, never taken
+  from the client, and deletion only accepts names matching that generated
+  pattern, so a crafted name can't escape the directory. 25 MB cap
+- **Credential changes** require the current password, so an unattended session
+  can't be used to lock you out
+- **Security headers**: CSP with `frame-ancestors 'none'`, `base-uri 'self'` and
+  `form-action 'self'`; `X-Frame-Options: DENY`; `Permissions-Policy` denying
+  camera, microphone and geolocation
+- **`/api/health`** returns only `{ ok: true }` to the public; the configuration
+  detail needs a session
 - `npm audit` reports **0 vulnerabilities**
+
+### Known limits
+
+- **Rate limits are per instance.** They live in the memory of one serverless
+  instance, so an attacker spread across many cold starts gets proportionally
+  more attempts. bcrypt's cost is the real throughput bound; put `/api/auth/*`
+  behind a WAF if the site attracts attention.
+- **The database is a single encrypted blob**, read and rewritten whole. Writes
+  re-check that nobody else moved the snapshot on before and after saving and
+  retry if they did, but blob storage has no compare-and-swap, so two writes
+  landing in the same millisecond can still interleave. Fine for one
+  administrator editing settings; not a datastore to grow high-write features on.
+- **Valet enquiries are capped at 500**, oldest dropped first, and an
+  administrator can delete individual ones from the Valet enquiries tab. They
+  are personal data — don't keep them longer than the enquiry needs.
 
 ### Before going live
 
@@ -109,7 +153,8 @@ Redeploy after adding or changing environment variables.
 2. Set `NODE_ENV=production`
 3. Change `ADMIN_PASSWORD` from whatever seeded the account
 4. Keep `JWT_SECRET` stable and retain appropriate Blob backups
-5. Consider putting `/api/auth/*` behind a WAF or Cloudflare if the site gets traffic
+5. Consider putting `/api/auth/*` behind a WAF or Cloudflare if the site gets
+   traffic — see "Known limits" above for why
 
 ## Photos and video
 
@@ -134,7 +179,9 @@ Change them there and they update across the whole site.
 
 Currently set:
 
-`src/config.js` holds the shipped defaults that the admin panel edits.
+`src/config.js` holds the shipped defaults that the admin panel edits. It is
+part of the browser bundle, so it holds no secrets — the admin account lives
+only in the encrypted database.
 
 | Setting | Value |
 | --- | --- |
