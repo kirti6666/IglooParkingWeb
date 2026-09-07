@@ -1,7 +1,10 @@
 /**
  * Inline SVG icons. All of them inherit `currentColor`, so colour is
- * controlled from CSS.
+ * controlled from CSS — with one deliberate exception: GooglePlayIcon, which
+ * reproduces Google's own four-colour mark and must keep its brand colours.
  */
+
+import { useId } from 'react'
 
 const base = {
   fill: 'none',
@@ -142,12 +145,74 @@ export function AppleIcon({ size = 26 }) {
   )
 }
 
-export function PlayStoreIcon({ size = 26 }) {
+/**
+ * The Google Play mark, in Google's own colours.
+ *
+ * Play badge artwork must not be recoloured or redrawn as a flat glyph, so
+ * this is the real four-segment triangle with its brand gradients rather than
+ * a `currentColor` silhouette. Gradient ids are per-instance (the badge renders
+ * twice on the page) — duplicate ids in one document collide.
+ */
+export function GooglePlayIcon({ size = 26 }) {
+  const uid = useId()
+  const id = (name) => `gp-${name}-${uid}`
+
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        {/* the spine, running bottom-left to top-left */}
+        <linearGradient id={id('spine')} x1="14.87" y1="4.29" x2="2.66" y2="16.5" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#00A0FF" />
+          <stop offset="0.01" stopColor="#00A1FF" />
+          <stop offset="0.26" stopColor="#00BEFF" />
+          <stop offset="0.51" stopColor="#00D2FF" />
+          <stop offset="0.76" stopColor="#00DFFF" />
+          <stop offset="1" stopColor="#00E3FF" />
+        </linearGradient>
+        {/* the tip, at the right of the triangle */}
+        <linearGradient id={id('tip')} x1="22.94" y1="12" x2="2.5" y2="12" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#FFE000" />
+          <stop offset="0.41" stopColor="#FFBD00" />
+          <stop offset="0.78" stopColor="#FFA500" />
+          <stop offset="1" stopColor="#FF9C00" />
+        </linearGradient>
+        {/* the lower face */}
+        <linearGradient id={id('lower')} x1="17.66" y1="13.92" x2="0.51" y2="31.07" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#FF3A44" />
+          <stop offset="1" stopColor="#C31162" />
+        </linearGradient>
+        {/* the upper face */}
+        <linearGradient id={id('upper')} x1="0.61" y1="-2.75" x2="8.27" y2="4.91" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#32A071" />
+          <stop offset="0.07" stopColor="#2DA771" />
+          <stop offset="0.48" stopColor="#15CF74" />
+          <stop offset="0.8" stopColor="#06E775" />
+          <stop offset="1" stopColor="#00F076" />
+        </linearGradient>
+      </defs>
+
       <path
-        fill="currentColor"
-        d="M5.2 3.4a1.4 1.4 0 0 0-.7 1.22v14.76a1.4 1.4 0 0 0 .7 1.22L14.9 12 5.2 3.4Zm10.92 7.52-2.43-1.46-6.3-5.58 8.73 7.04Zm-8.73 9.2 6.31-5.58 2.42-1.46-8.73 7.04Zm10.22-8.96L15.84 12l1.77.84 1.34-.8a.05.05 0 0 0 0-.08l-1.34-.8Z"
+        fill={`url(#${id('spine')})`}
+        d="M3.53 1.6a1.72 1.72 0 0 0-.4 1.21v18.38a1.72 1.72 0 0 0 .4 1.21l.06.06L13.88 12.1v-.24L3.59 1.54Z"
+      />
+      <path
+        fill={`url(#${id('tip')})`}
+        d="m17.3 15.53-3.42-3.43v-.24l3.43-3.43.08.05 4.07 2.31c1.16.66 1.16 1.74 0 2.4l-4.07 2.31Z"
+      />
+      <path
+        fill={`url(#${id('lower')})`}
+        d="M17.39 15.48 13.88 11.98 3.53 22.4a1.34 1.34 0 0 0 1.71.05l12.15-6.9"
+      />
+      <path
+        fill={`url(#${id('upper')})`}
+        d="M17.39 8.48 5.24 1.58a1.34 1.34 0 0 0-1.71.05l10.35 10.35Z"
       />
     </svg>
   )

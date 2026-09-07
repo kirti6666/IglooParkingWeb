@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { MapPinIcon } from './Icons'
 import { api, hasBackend } from '../api'
 import { useSite } from '../ConfigContext'
 
@@ -27,7 +26,6 @@ function Field({
   autoComplete,
   placeholder,
   optional,
-  icon,
   full,
 }) {
   return (
@@ -35,7 +33,7 @@ function Field({
       <label className="field__label" htmlFor={id}>
         {label} {optional ? null : <span aria-hidden="true">*</span>}
       </label>
-      <div className={`field__control${icon ? ' field__control--icon' : ''}`}>
+      <div className="field__control">
         <input
           id={id}
           className={`field__input${invalid ? ' is-invalid' : ''}`}
@@ -46,11 +44,6 @@ function Field({
           placeholder={placeholder}
           required={!optional}
         />
-        {icon ? (
-          <span className="field__icon" aria-hidden="true">
-            {icon}
-          </span>
-        ) : null}
       </div>
     </div>
   )
@@ -204,7 +197,6 @@ export default function HostRegistration() {
               onChange={update('location')}
               invalid={invalid.includes('location')}
               placeholder="Locality or landmark"
-              icon={<MapPinIcon size={20} />}
             />
           </div>
 

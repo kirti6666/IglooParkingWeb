@@ -1754,6 +1754,13 @@ section[id] {
   letter-spacing: 0.02em;
 }
 
+/* Google's badge sets the lead-in line in caps; Apple's does not. */
+.badge-store__small--caps {
+  text-transform: uppercase;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+}
+
 .badge-store__big {
   display: block;
   font-size: 19px;
@@ -1805,26 +1812,10 @@ section[id] {
   grid-column: 1 / -1;
 }
 
-/* Wraps an input that carries a trailing icon, e.g. the map pin on the
-   parking location field. */
+/* Wraps a form input so it fills the field row. */
 .field__control {
   position: relative;
   display: flex;
-}
-
-.field__control--icon .field__input {
-  padding-right: 46px;
-}
-
-.field__icon {
-  position: absolute;
-  top: 50%;
-  right: 14px;
-  translate: 0 -50%;
-  display: grid;
-  place-items: center;
-  color: var(--slate);
-  pointer-events: none;
 }
 
 .field__label {
