@@ -7,14 +7,24 @@ import {
   withSession,
 } from '../../_lib/auth'
 import { readDb, updateDb } from '../../_lib/db'
-import { guardMutation, jsonError } from '../../_lib/http'
+import { guardMutation, jsonError, rateLimit, readJson } from '../../_lib/http'
 
 export async function POST(request) {
   const rejected = guardMutation(request)
   if (rejected) return rejected
   const { user, response } = await requireUser(request)
   if (response) return response
-  const body = await request.json().catch(() => ({}))
+  const limited = rateLimit(
+    request,
+    'change-password',
+    10,
+    15 * 60 * 1000,
+    'Too many attempts. Try again in 15 minutes.',
+  )
+  if (limited) return limited
+
+  const { data: body, error } = await readJson(request, 8 * 1024)
+  if (error) return error
   const currentPassword = String(body.currentPassword || '')
   const newPassword = String(body.newPassword || '')
   const problem = validatePassword(newPassword)

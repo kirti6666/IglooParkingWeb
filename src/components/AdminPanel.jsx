@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { useConfigAdmin } from '../ConfigContext'
-import { hashCredentials } from '../auth'
 import { api, hasBackend } from '../api'
 
 /**
  * Admin panel. Open the site with #admin in the URL to reveal it.
  *
- * WHAT IT DOES: edits the live site instantly, and saves to this browser so
- * the changes survive a refresh on this device.
+ * Every change here is edited live and published through the API to the
+ * encrypted store, so visitors see it as soon as it saves. The server checks
+ * the session cookie on each write — this panel only reveals the controls,
+ * it does not grant anything.
  *
- * WHAT IT CANNOT DO: a static site has no server, so "Save" is local to the
- * browser you're using — visitors won't see it. To publish a change for
- * everyone, hit "Download config" and either paste the values into
- * src/config.js and redeploy, or wire the app to a CMS (see the README).
+ * The published document is re-validated server-side (app/api/_lib/
+ * config-schema.js), so what lands in storage is never simply what this form
+ * posted.
  */
 
 function Text({ label, value, onChange, placeholder, hint, type = 'text' }) {
@@ -94,11 +94,14 @@ const TABS = [
   ['security', 'Security'],
 ]
 
-/** Shared shell for the read-only submission tabs: loads on mount, offers a
- *  refresh, and handles the loading, error and empty states. */
-function LeadsTab({ fetchLeads, note, empty, children }) {
+/** Shared shell for the submission tabs: loads on mount, offers a refresh, and
+ *  handles the loading, error and empty states. A tab that can delete a record
+ *  passes `deleteLead`; the row renderer receives the delete helper and the id
+ *  currently in flight so it can render its own button. */
+function LeadsTab({ fetchLeads, deleteLead, describe, note, empty, children }) {
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
 
   async function load() {
@@ -110,6 +113,29 @@ function LeadsTab({ fetchLeads, note, empty, children }) {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  /** Submissions are somebody's contact details. Once one has been handled it
+   *  should be possible to remove it rather than keep it indefinitely. */
+  async function remove(lead) {
+    if (!deleteLead) return
+    if (
+      !window.confirm(
+        `Delete the submission from ${describe ? describe(lead) : 'this contact'}? This cannot be undone.`,
+      )
+    ) {
+      return
+    }
+    setError('')
+    setBusyId(lead.id)
+    try {
+      await deleteLead(lead.id)
+      setLeads((prev) => prev.filter((item) => item.id !== lead.id))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusyId('')
     }
   }
 
@@ -135,7 +161,9 @@ function LeadsTab({ fetchLeads, note, empty, children }) {
         <p className="ap__note">{empty}</p>
       ) : null}
 
-      {leads.map(children)}
+      {leads.map((lead) =>
+        children(lead, { remove: deleteLead ? remove : null, busyId }),
+      )}
     </>
   )
 }
@@ -144,16 +172,28 @@ function ValetLeadsTab() {
   return (
     <LeadsTab
       fetchLeads={async () => (await api.getValetLeads())?.leads ?? []}
+      deleteLead={(id) => api.deleteValetLead(id)}
+      describe={(lead) => lead.businessName}
       note="Newest enquiries appear first. Contact details are visible only to signed-in administrators."
       empty="No valet enquiries yet."
     >
-      {(lead) => (
+      {(lead, { remove, busyId }) => (
         <article className="ap__lead" key={lead.id}>
           <div className="ap__leadTitle">
             <h3>{lead.businessName}</h3>
             <time dateTime={lead.submittedAt}>
               {new Date(lead.submittedAt).toLocaleString()}
             </time>
+            {remove ? (
+              <button
+                className="ap__deleteBtn"
+                type="button"
+                onClick={() => remove(lead)}
+                disabled={busyId === lead.id}
+              >
+                {busyId === lead.id ? 'Deleting…' : 'Delete'}
+              </button>
+            ) : null}
           </div>
           <dl>
             <div><dt>Contact</dt><dd>{lead.contactName}</dd></div>
@@ -198,8 +238,9 @@ function HostRegistrationsTab() {
   )
 }
 
-/** Generates the hash to paste into src/config.js when changing the password.
- *  The password itself is never stored anywhere — only its hash. */
+/** Changes the admin email or password. Both go to the API, which re-checks
+ *  the current password and bumps the session version so other sessions are
+ *  invalidated. Nothing is verified in the browser. */
 function ServerSecurityTab() {
   const [email, setEmail] = useState('')
   const [emailPw, setEmailPw] = useState('')
@@ -296,88 +337,6 @@ function ServerSecurityTab() {
 
       {err ? <p className="ap__error">{err}</p> : null}
       {msg ? <p className="ap__flash">{msg}</p> : null}
-    </>
-  )
-}
-
-function SecurityTab({ username, update }) {
-  const [pw, setPw] = useState('')
-  const [pw2, setPw2] = useState('')
-  const [hash, setHash] = useState('')
-  const [err, setErr] = useState('')
-
-  async function generate() {
-    setErr('')
-    setHash('')
-    if (pw.length < 10) {
-      setErr('Use at least 10 characters.')
-      return
-    }
-    if (pw !== pw2) {
-      setErr("The two passwords don't match.")
-      return
-    }
-    try {
-      setHash(await hashCredentials(username, pw))
-    } catch (e) {
-      setErr(
-        e?.code === 'insecure-context'
-          ? 'Hashing needs https:// or localhost.'
-          : 'Could not generate the hash.',
-      )
-    }
-  }
-
-  return (
-    <>
-      <Text
-        label="User ID"
-        value={username}
-        onChange={(v) => update('admin.username', v)}
-      />
-
-      <label className="ap__field">
-        <span className="ap__label">New password</span>
-        <input
-          className="ap__input"
-          type="password"
-          value={pw}
-          onChange={(e) => setPw(e.target.value)}
-          autoComplete="new-password"
-        />
-        <span className="ap__hint">At least 10 characters.</span>
-      </label>
-
-      <label className="ap__field">
-        <span className="ap__label">Confirm password</span>
-        <input
-          className="ap__input"
-          type="password"
-          value={pw2}
-          onChange={(e) => setPw2(e.target.value)}
-          autoComplete="new-password"
-        />
-      </label>
-
-      {err ? <p className="ap__error">{err}</p> : null}
-
-      <button className="btn btn--primary" type="button" onClick={generate}>
-        Generate hash
-      </button>
-
-      {hash ? (
-        <div className="ap__pair">
-          <p className="ap__label">Paste this into src/config.js, then redeploy:</p>
-          <code className="ap__code">passwordHash: '{hash}',</code>
-        </div>
-      ) : null}
-
-      <p className="ap__note ap__note--warn">
-        <strong>Sign-in here is a deterrent, not real security.</strong> The check
-        runs in the browser, so anyone reading the page source can work around it.
-        That's acceptable while this panel publishes nothing. If you connect saving
-        to a server or CMS, move authentication to the server first.
-      </p>
     </>
   )
 }
@@ -596,12 +555,7 @@ export default function AdminPanel({ onClose, onSignOut }) {
           </>
         )}
 
-        {tab === 'security' &&
-          (hasBackend ? (
-            <ServerSecurityTab />
-          ) : (
-            <SecurityTab username={config.admin.username} update={update} />
-          ))}
+        {tab === 'security' && <ServerSecurityTab />}
 
         {tab === 'valet' && <ValetLeadsTab />}
 

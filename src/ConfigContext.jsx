@@ -131,7 +131,11 @@ export function ConfigProvider({ children }) {
           poster: portableMediaUrl(video?.poster),
         }))
       }
-      await api.saveConfig(payload)
+      const saved = await api.saveConfig(payload)
+      // The API re-validates what it is sent, so the stored document can differ
+      // from what was posted — a malformed colour falls back, an unsafe URL is
+      // dropped. Adopt the server's copy so the panel shows what is really live.
+      if (saved?.config) setConfig(normaliseConfig(saved.config))
       return { ok: true, message: 'Published. Every visitor sees this now.' }
     } catch (err) {
       return {

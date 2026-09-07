@@ -2,10 +2,22 @@ import crypto from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { readDb, updateDb } from '../_lib/db'
 import { requireUser } from '../_lib/auth'
-import { guardMutation, jsonError, rateLimit, storageUnavailable } from '../_lib/http'
+import {
+  guardMutation,
+  jsonError,
+  rateLimit,
+  readJson,
+  storageUnavailable,
+} from '../_lib/http'
 import { sendValetEnquiryEmail } from '../_lib/mailer'
 
 const clean = (value, max = 180) => String(value || '').trim().slice(0, max)
+
+/** Leads are contact details for real people held in a single encrypted
+ *  document that is read in full on every request. Keeping them forever grows
+ *  that document without bound and holds personal data longer than the enquiry
+ *  needs it, so the oldest fall off once this many have accumulated. */
+const MAX_LEADS = 500
 
 export async function POST(request) {
   const rejected = guardMutation(request)
@@ -19,7 +31,10 @@ export async function POST(request) {
   )
   if (limited) return limited
 
-  const body = await request.json().catch(() => ({}))
+  const { data: body, error } = await readJson(request, 16 * 1024)
+  if (error) return error
+  // Honeypot: answer exactly as we would a real submission, so a bot learns
+  // nothing from the response.
   if (clean(body.website)) return NextResponse.json({ ok: true }, { status: 201 })
 
   const lead = {
@@ -59,6 +74,9 @@ export async function POST(request) {
     await updateDb(async (next) => {
       next.valetLeads ??= []
       next.valetLeads.push(record)
+      if (next.valetLeads.length > MAX_LEADS) {
+        next.valetLeads = next.valetLeads.slice(-MAX_LEADS)
+      }
     })
   } catch (error) {
     return storageUnavailable(error, 'send your enquiry')

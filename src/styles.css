@@ -3098,6 +3098,7 @@ section[id] {
 }
 
 .ap__leadTitle h3 {
+  flex: 1;
   font-family: var(--display);
   font-size: 1rem;
 }

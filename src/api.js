@@ -104,6 +104,8 @@ export const api = {
   submitValet: (details) =>
     request('/api/valet', { method: 'POST', body: details }),
   getValetLeads: () => request('/api/valet'),
+  deleteValetLead: (id) =>
+    request(`/api/valet/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   submitHostRegistration: (details) =>
     request('/api/host', { method: 'POST', body: details }),

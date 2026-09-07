@@ -1,12 +1,24 @@
 import { NextResponse } from 'next/server'
 import { hashPassword, hashToken, validatePassword } from '../../_lib/auth'
 import { readDb, updateDb } from '../../_lib/db'
-import { guardMutation, jsonError } from '../../_lib/http'
+import { guardMutation, jsonError, rateLimit, readJson } from '../../_lib/http'
 
 export async function POST(request) {
   const rejected = guardMutation(request)
   if (rejected) return rejected
-  const body = await request.json().catch(() => ({}))
+  // Reset tokens are 256-bit, so guessing is hopeless — but an unlimited
+  // endpoint that runs a bcrypt hash per call is a free CPU sink.
+  const limited = rateLimit(
+    request,
+    'reset',
+    10,
+    60 * 60 * 1000,
+    'Too many reset attempts. Try again later.',
+  )
+  if (limited) return limited
+
+  const { data: body, error } = await readJson(request, 8 * 1024)
+  if (error) return error
   const token = String(body.token || '')
   const password = String(body.password || '')
   const problem = validatePassword(password)
