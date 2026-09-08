@@ -2,7 +2,14 @@ import crypto from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { readDb, updateDb } from '../_lib/db'
 import { requireUser } from '../_lib/auth'
-import { guardMutation, jsonError, rateLimit, readJson } from '../_lib/http'
+import {
+  guardMutation,
+  jsonError,
+  rateLimit,
+  readJson,
+  storageUnavailable,
+} from '../_lib/http'
+import { sendValetEnquiryEmail } from '../_lib/mailer'
 
 const clean = (value, max = 180) => String(value || '').trim().slice(0, max)
 
@@ -55,6 +62,15 @@ export async function POST(request) {
 
   const record = { id: crypto.randomUUID(), ...lead, submittedAt: new Date().toISOString() }
   try {
+    await sendValetEnquiryEmail(record)
+  } catch (error) {
+    console.error('[igloo] valet enquiry email failed:', error)
+    return jsonError(
+      "Sorry — we couldn't send your enquiry just now. Please try again in a moment.",
+      503,
+    )
+  }
+  try {
     await updateDb(async (next) => {
       next.valetLeads ??= []
       next.valetLeads.push(record)
@@ -62,9 +78,8 @@ export async function POST(request) {
         next.valetLeads = next.valetLeads.slice(-MAX_LEADS)
       }
     })
-  } catch (err) {
-    console.error('Valet enquiry could not be stored:', err)
-    return jsonError('We could not record that enquiry. Please try again.', 503)
+  } catch (error) {
+    return storageUnavailable(error, 'send your enquiry')
   }
   return NextResponse.json({ ok: true, id: record.id }, { status: 201 })
 }
@@ -72,8 +87,12 @@ export async function POST(request) {
 export async function GET(request) {
   const { response } = await requireUser(request)
   if (response) return response
-  const db = await readDb()
-  return NextResponse.json({
-    leads: Array.isArray(db.valetLeads) ? [...db.valetLeads].reverse() : [],
-  })
+  try {
+    const db = await readDb()
+    return NextResponse.json({
+      leads: Array.isArray(db.valetLeads) ? [...db.valetLeads].reverse() : [],
+    })
+  } catch (error) {
+    return storageUnavailable(error, 'load the enquiries')
+  }
 }

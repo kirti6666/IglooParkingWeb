@@ -1,9 +1,18 @@
 import crypto from 'node:crypto'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { del, get, list, put } from '@vercel/blob'
 import { defaultConfig } from '../../../src/config.js'
 
 const DATABASE_PREFIX = 'igloo-private/database/'
-const EMPTY = { config: null, users: [], resetTokens: [], valetLeads: [] }
+const LOCAL_DATABASE_PATH = path.join(process.cwd(), '.data', 'igloo-db.json')
+const EMPTY = {
+  config: null,
+  users: [],
+  resetTokens: [],
+  valetLeads: [],
+  hostRegistrations: [],
+}
 
 /** Snapshots we keep behind the current one, as a manual recovery window.
  *  Everything older is deleted after each write, so the blob store does not
@@ -30,6 +39,7 @@ function normalise(value) {
   db.users ??= []
   db.resetTokens ??= []
   db.valetLeads ??= []
+  db.hostRegistrations ??= []
   if (!db.config) {
     db.config = clone(defaultConfig)
   }
@@ -38,6 +48,25 @@ function normalise(value) {
   // what an existing snapshot happens to hold.
   if (db.config && typeof db.config === 'object') delete db.config.admin
   return db
+}
+
+function useLocalDatabase() {
+  return !process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN
+}
+
+async function readLocalDatabase() {
+  try {
+    const payload = await fs.readFile(LOCAL_DATABASE_PATH, 'utf8')
+    return normalise(JSON.parse(payload))
+  } catch (error) {
+    if (error?.code === 'ENOENT') return normalise(null)
+    throw error
+  }
+}
+
+async function writeLocalDatabase(next) {
+  await fs.mkdir(path.dirname(LOCAL_DATABASE_PATH), { recursive: true })
+  await fs.writeFile(LOCAL_DATABASE_PATH, JSON.stringify(next, null, 2), 'utf8')
 }
 
 function encrypt(value) {
@@ -120,6 +149,7 @@ async function readSnapshot() {
 }
 
 export async function readDb() {
+  if (useLocalDatabase()) return readLocalDatabase()
   const { db } = await readSnapshot()
   return db
 }
@@ -139,6 +169,11 @@ async function prune(keepPathname) {
 }
 
 export async function writeDb(next) {
+  if (useLocalDatabase()) {
+    await writeLocalDatabase(next)
+    return null
+  }
+
   const pathname = `${DATABASE_PREFIX}${Date.now()}-${crypto.randomUUID()}.enc`
   await put(pathname, encrypt(next), {
     access: 'public',
@@ -150,17 +185,27 @@ export async function writeDb(next) {
 }
 
 /**
- * Read-modify-write against the blob store.
+ * Read-modify-write against the database.
  *
- * Blob storage has no compare-and-swap, so this is best effort: the snapshot
- * read at the start is re-checked immediately before writing, and the write is
- * re-checked after landing. A mutation that raced another instance is retried
- * from a fresh read instead of silently overwriting it. Two writes that land in
- * the same millisecond can still interleave — acceptable for a single-admin
- * settings store, but the reason this must not become a high-write dataset.
+ * Blob storage has no compare-and-swap, so the hosted path is best effort: the
+ * snapshot read at the start is re-checked immediately before writing, and the
+ * write is re-checked after landing. A mutation that raced another instance is
+ * retried from a fresh read instead of silently overwriting it. Two writes that
+ * land in the same millisecond can still interleave — acceptable for a
+ * single-admin settings store, but the reason this must not become a
+ * high-write dataset.
  */
 export async function updateDb(mutator) {
   const run = writing.then(async () => {
+    // The local development store is a single file behind the queue above, so
+    // there is no second writer for the snapshot dance to protect against.
+    if (useLocalDatabase()) {
+      const next = clone(await readLocalDatabase())
+      await mutator(next)
+      await writeLocalDatabase(next)
+      return next
+    }
+
     let lastError = null
 
     for (let attempt = 0; attempt < WRITE_ATTEMPTS; attempt += 1) {
@@ -196,8 +241,10 @@ export async function updateDb(mutator) {
     throw lastError ?? new Error('Could not save — the database is busy. Please retry.')
   })
 
-  // The queue tail must never reject, or one failed mutation poisons every
-  // later caller on this instance. The caller still sees `run`'s rejection.
+  // The queue exists to serialise writes, not to spread one caller's failure.
+  // Chaining `run` itself would hand its rejection to every later write, so a
+  // single blob hiccup would keep failing until the instance was recycled.
+  // The caller still sees `run`'s rejection.
   writing = run.then(
     () => undefined,
     () => undefined,

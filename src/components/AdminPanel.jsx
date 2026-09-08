@@ -89,11 +89,16 @@ const TABS = [
   ['contact', 'Contact'],
   ['links', 'Links'],
   ['media', 'Photos & video'],
+  ['hosts', 'Host registrations'],
   ['valet', 'Valet enquiries'],
   ['security', 'Security'],
 ]
 
-function ValetLeadsTab() {
+/** Shared shell for the submission tabs: loads on mount, offers a refresh, and
+ *  handles the loading, error and empty states. A tab that can delete a record
+ *  passes `deleteLead`; the row renderer receives the delete helper and the id
+ *  currently in flight so it can render its own button. */
+function LeadsTab({ fetchLeads, deleteLead, describe, note, empty, children }) {
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState('')
@@ -103,8 +108,7 @@ function ValetLeadsTab() {
     setLoading(true)
     setError('')
     try {
-      const result = await api.getValetLeads()
-      setLeads(result?.leads ?? [])
+      setLeads(await fetchLeads())
     } catch (err) {
       setError(err.message)
     } finally {
@@ -112,12 +116,13 @@ function ValetLeadsTab() {
     }
   }
 
-  /** Enquiries are somebody's contact details. Once one has been handled it
+  /** Submissions are somebody's contact details. Once one has been handled it
    *  should be possible to remove it rather than keep it indefinitely. */
   async function remove(lead) {
+    if (!deleteLead) return
     if (
       !window.confirm(
-        `Delete the enquiry from ${lead.businessName}? This cannot be undone.`,
+        `Delete the submission from ${describe ? describe(lead) : 'this contact'}? This cannot be undone.`,
       )
     ) {
       return
@@ -125,7 +130,7 @@ function ValetLeadsTab() {
     setError('')
     setBusyId(lead.id)
     try {
-      await api.deleteValetLead(lead.id)
+      await deleteLead(lead.id)
       setLeads((prev) => prev.filter((item) => item.id !== lead.id))
     } catch (err) {
       setError(err.message)
@@ -139,16 +144,13 @@ function ValetLeadsTab() {
   }, [])
 
   if (!hasBackend) {
-    return <p className="ap__note">Valet enquiries require the backend.</p>
+    return <p className="ap__note">This tab requires the backend.</p>
   }
 
   return (
     <>
       <div className="ap__leadHead">
-        <p className="ap__note">
-          Newest enquiries appear first. Contact details are visible only to
-          signed-in administrators.
-        </p>
+        <p className="ap__note">{note}</p>
         <button className="btn btn--ghost" type="button" onClick={load} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
         </button>
@@ -156,24 +158,42 @@ function ValetLeadsTab() {
 
       {error ? <p className="ap__error">{error}</p> : null}
       {!loading && !error && leads.length === 0 ? (
-        <p className="ap__note">No valet enquiries yet.</p>
+        <p className="ap__note">{empty}</p>
       ) : null}
 
-      {leads.map((lead) => (
+      {leads.map((lead) =>
+        children(lead, { remove: deleteLead ? remove : null, busyId }),
+      )}
+    </>
+  )
+}
+
+function ValetLeadsTab() {
+  return (
+    <LeadsTab
+      fetchLeads={async () => (await api.getValetLeads())?.leads ?? []}
+      deleteLead={(id) => api.deleteValetLead(id)}
+      describe={(lead) => lead.businessName}
+      note="Newest enquiries appear first. Contact details are visible only to signed-in administrators."
+      empty="No valet enquiries yet."
+    >
+      {(lead, { remove, busyId }) => (
         <article className="ap__lead" key={lead.id}>
           <div className="ap__leadTitle">
             <h3>{lead.businessName}</h3>
             <time dateTime={lead.submittedAt}>
               {new Date(lead.submittedAt).toLocaleString()}
             </time>
-            <button
-              className="ap__deleteBtn"
-              type="button"
-              onClick={() => remove(lead)}
-              disabled={busyId === lead.id}
-            >
-              {busyId === lead.id ? 'Deleting…' : 'Delete'}
-            </button>
+            {remove ? (
+              <button
+                className="ap__deleteBtn"
+                type="button"
+                onClick={() => remove(lead)}
+                disabled={busyId === lead.id}
+              >
+                {busyId === lead.id ? 'Deleting…' : 'Delete'}
+              </button>
+            ) : null}
           </div>
           <dl>
             <div><dt>Contact</dt><dd>{lead.contactName}</dd></div>
@@ -182,8 +202,39 @@ function ValetLeadsTab() {
             <div className="ap__leadWide"><dt>Address</dt><dd>{lead.addressLine1}, {lead.location}, {lead.city} — {lead.pin}, {lead.state}</dd></div>
           </dl>
         </article>
-      ))}
-    </>
+      )}
+    </LeadsTab>
+  )
+}
+
+function HostRegistrationsTab() {
+  return (
+    <LeadsTab
+      fetchLeads={async () => (await api.getHostRegistrations())?.registrations ?? []}
+      note="Newest registrations appear first. Contact details are visible only to signed-in administrators."
+      empty="No host registrations yet."
+    >
+      {(host) => (
+        <article className="ap__lead" key={host.id}>
+          <div className="ap__leadTitle">
+            <h3>{host.name}</h3>
+            <time dateTime={host.submittedAt}>
+              {new Date(host.submittedAt).toLocaleString()}
+            </time>
+          </div>
+          <dl>
+            <div><dt>Mobile</dt><dd><a href={`tel:${host.mobile}`}>{host.mobile}</a></dd></div>
+            <div><dt>Email</dt><dd><a href={`mailto:${host.email}`}>{host.email}</a></dd></div>
+            <div className="ap__leadWide">
+              <dt>Parking address</dt>
+              <dd>
+                {[host.building, host.street, host.location].filter(Boolean).join(', ')} — {host.pincode}
+              </dd>
+            </div>
+          </dl>
+        </article>
+      )}
+    </LeadsTab>
   )
 }
 
@@ -442,6 +493,7 @@ export default function AdminPanel({ onClose, onSignOut }) {
               value={config.brand.tagline}
               onChange={(v) => update('brand.tagline', v)}
             />
+
           </>
         )}
 
@@ -486,12 +538,6 @@ export default function AdminPanel({ onClose, onSignOut }) {
               onChange={(v) => update('links.playStore', v)}
               hint="Leave empty and the page shows “Android — coming soon” instead"
             />
-            <Text
-              label="Form endpoint"
-              value={config.links.formEndpoint}
-              onChange={(v) => update('links.formEndpoint', v)}
-              hint="Optional Formspree / FormSubmit URL. Empty = opens the visitor's mail app"
-            />
             {config.footerLinks.map((link, i) => (
               <div className="ap__pair" key={i}>
                 <Text
@@ -512,6 +558,8 @@ export default function AdminPanel({ onClose, onSignOut }) {
         {tab === 'security' && <ServerSecurityTab />}
 
         {tab === 'valet' && <ValetLeadsTab />}
+
+        {tab === 'hosts' && <HostRegistrationsTab />}
 
         {tab === 'media' && (
           <>
@@ -552,7 +600,7 @@ export default function AdminPanel({ onClose, onSignOut }) {
                   placeholder="https://…/space.jpg"
                 />
                 <Upload
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                   onUploaded={(url) =>
                     publishUpload(`media.images.${i}.src`, url, `Photo ${i + 1}`)
                   }
@@ -594,7 +642,7 @@ export default function AdminPanel({ onClose, onSignOut }) {
                   placeholder="https://…/tour.mp4"
                 />
                 <Upload
-                  accept="video/mp4,video/webm"
+                  accept="video/mp4,video/webm,.mp4,.webm"
                   onUploaded={(url) =>
                     publishUpload(`media.videos.${i}.src`, url, `Video ${i + 1}`)
                   }
@@ -606,7 +654,7 @@ export default function AdminPanel({ onClose, onSignOut }) {
                   hint="Shown before playback starts — keeps mobile data use down"
                 />
                 <Upload
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                   onUploaded={(url) =>
                     publishUpload(`media.videos.${i}.poster`, url, `Video ${i + 1} poster`)
                   }
@@ -628,7 +676,7 @@ export default function AdminPanel({ onClose, onSignOut }) {
 
       <footer className="ap__foot">
         {note ? <p className="ap__flash">{note}</p> : null}
-        {tab !== 'valet' ? <div className="ap__actions">
+        {tab !== 'valet' && tab !== 'hosts' ? <div className="ap__actions">
           <button className="btn btn--primary" type="button" onClick={handleSave} disabled={saving}>
             {saving ? 'Publishing…' : hasBackend ? 'Publish changes' : 'Save to this browser'}
           </button>

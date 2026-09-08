@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const isDev = process.env.NODE_ENV === 'development'
+
 const nextConfig = {
   reactStrictMode: true,
   turbopack: {
@@ -23,7 +25,8 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               // Next.js inlines its bootstrap and flight payload without a nonce.
-              "script-src 'self' 'unsafe-inline'",
+              // Turbopack's dev runtime also evaluates, which production never does.
+              `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",
               // Admins may point gallery slots at media hosted anywhere over TLS.
@@ -37,7 +40,8 @@ const nextConfig = {
               // A stored <base> or an injected form can't retarget the page.
               "base-uri 'self'",
               "form-action 'self'",
-              'upgrade-insecure-requests',
+              // Would rewrite http://localhost to https and break dev outright.
+              ...(isDev ? [] : ['upgrade-insecure-requests']),
             ].join('; '),
           },
         ],

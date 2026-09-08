@@ -37,10 +37,12 @@ password?** and a reset link is emailed to you.
 Change your email or password any time from the **Security** tab — both ask for
 your current password first.
 
-Six tabs: Brand, Contact, Links, Photos & video, Valet enquiries, and Security.
-Edits apply to the page instantly as you type; **Publish changes** makes them
-live for everyone. Five wrong sign-in attempts locks the form for 60 seconds
-(the limit that actually matters is enforced by the API — see Security below).
+Seven tabs: Brand, Contact, Links, Photos & video, Host registrations, Valet
+enquiries, and Security. The logo is not among them — it ships as files in
+`public/`, see *Logo* below. Edits apply to the page instantly as you type;
+**Publish changes** makes them live for everyone. Five wrong sign-in attempts
+locks the form for 60 seconds (the limit that actually matters is enforced by
+the API — see Security below).
 
 The API re-validates what it is sent, so a value it rejects — an unsafe link,
 a malformed colour — falls back rather than publishing. The panel refreshes
@@ -54,7 +56,8 @@ individual ones; enquiries are personal data, so remove them once handled.
 All backend endpoints live in `app/api/`. The website and API run as one Next.js
 application on the same origin, so no separate server process or API URL is
 needed. Vercel Blob stores uploaded images and videos plus encrypted snapshots
-of settings, the admin account, reset tokens, and valet enquiries.
+of settings, the admin account, reset tokens, host registrations, and valet
+enquiries.
 
 Copy `.env.example` to `.env`, fill in the admin and JWT values, then run:
 
@@ -81,7 +84,8 @@ rotate the stored production credentials.
 | `JWT_SECRET` | 48+ random bytes used for sessions and database encryption. Generate: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seeds the first admin on first sign-in. Password needs 10+ chars with a letter and a number |
 | `FRONTEND_ORIGIN` | Your site's URL. Used to build reset links |
-| `SMTP_*` | Any provider. **Leave `SMTP_HOST` empty in development** and reset links print to the Next.js console instead of being emailed |
+| `SMTP_*` | SMTP provider used for password resets and direct website enquiries. Gmail requires an App Password, not your normal account password |
+| `CONTACT_TO_EMAIL` | Gmail inbox that receives contact-form enquiries. Falls back to `SMTP_USER`, then `ADMIN_EMAIL` |
 | `BLOB_READ_WRITE_TOKEN` | Added automatically when the Vercel Blob store is connected |
 
 `.env` is gitignored. Never commit storage tokens or other secrets.
@@ -94,7 +98,7 @@ Connect this GitHub repository to Vercel, then connect a public Blob store:
 - encrypted Blob snapshots for private admin and website data
 
 Set `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_CREDENTIALS_VERSION`,
-`FRONTEND_ORIGIN`, and optional `SMTP_*` values in Vercel Project Settings.
+`FRONTEND_ORIGIN`, `SMTP_*`, and `CONTACT_TO_EMAIL` values in Vercel Project Settings.
 Redeploy after adding or changing environment variables.
 
 ### What protects it
@@ -120,14 +124,18 @@ Redeploy after adding or changing environment variables.
   visitors
 - **Request bodies are size-capped** before they are parsed
 - **Uploads** are checked three ways — extension, declared MIME type, and a
-  magic-number sniff of the actual bytes. Filenames are generated, never taken
-  from the client, and deletion only accepts names matching that generated
-  pattern, so a crafted name can't escape the directory. 25 MB cap
+  magic-number sniff of the actual bytes. A browser that reports no type, or a
+  generic `application/octet-stream`, still has to pass the magic-number check,
+  and the type the file is later served with comes from the verified extension
+  rather than from the client. Filenames are generated, never taken from the
+  client, and deletion only accepts names matching that generated pattern, so a
+  crafted name can't escape the directory. 25 MB cap
 - **Credential changes** require the current password, so an unattended session
   can't be used to lock you out
 - **Security headers**: CSP with `frame-ancestors 'none'`, `base-uri 'self'` and
   `form-action 'self'`; `X-Frame-Options: DENY`; `Permissions-Policy` denying
-  camera, microphone and geolocation
+  camera, microphone and geolocation. `upgrade-insecure-requests` is omitted in
+  development, where it would rewrite `http://localhost` and break the dev server
 - **`/api/health`** returns only `{ ok: true }` to the public; the configuration
   detail needs a session
 - `npm audit` reports **0 vulnerabilities**
@@ -155,6 +163,44 @@ Redeploy after adding or changing environment variables.
 4. Keep `JWT_SECRET` stable and retain appropriate Blob backups
 5. Consider putting `/api/auth/*` behind a WAF or Cloudflare if the site gets
    traffic — see "Known limits" above for why
+
+## Host registration
+
+The **Register your parking space** section is a live form — name, mobile
+number, email, building name (optional), street name, pincode, and parking
+place location.
+
+Submissions are validated on both sides, rate limited to 10 an hour per IP,
+and stored in the encrypted database. Read them back in the admin panel's
+**Host registrations** tab, newest first. The parking place location is a text
+field; wiring it to a real map picker needs a maps provider and API key.
+
+## Logo
+
+The supplied artwork lives in `public/` as four PNGs, all cropped from the same
+source file with the white ground made transparent:
+
+| File | Used by | Why |
+| --- | --- | --- |
+| `logo-mark.png` | header | The arc, car and parking sign only |
+| `logo-mark-light.png` | header over the hero | Same, ink reversed to white |
+| `logo.png` | footer | The complete lockup, wordmark and tagline |
+| `logo-light.png` | footer | Same, ink reversed to white |
+
+The header uses the mark rather than the full lockup because the bar is about
+64px tall, and at that height the lockup's wordmark and tagline are too small
+to read. The wordmark beside it is live text in the site's own typeface, so it
+stays crisp at any size. The footer has room for the complete artwork, so it
+gets that instead — and no longer repeats the tagline underneath, because the
+lockup already carries it.
+
+The reversed versions keep the original coverage and flip only the ink, so the
+parking sign's "P" and the car's windshield stay transparent and read against
+whatever is behind them.
+
+To replace the logo, drop new files at those four paths. Sizes come from the
+`height` prop in `Logo.jsx` (38px header, 112px footer), so the images only
+need to be large enough for a retina display at those sizes.
 
 ## Photos and video
 
@@ -258,7 +304,7 @@ The frame, notch, shadow, and caption all stay as they are.
 | 2 | Problem breather | `Problem.jsx` |
 | 3 | Rider features | `Features.jsx` → `RiderFeatures` |
 | 4 | Host features | `Features.jsx` → `HostFeatures` |
-| — | Host registration details | `HostRegistration.jsx` |
+| — | Host registration form | `HostRegistration.jsx` |
 | 5 | How it works — 3 steps | `HowItWorks.jsx` |
 | 6 | Trust & support strip | `Trust.jsx` |
 | 7 | App download | `Download.jsx` |
